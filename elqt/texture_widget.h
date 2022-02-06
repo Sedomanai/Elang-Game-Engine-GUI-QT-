@@ -17,7 +17,6 @@ namespace el
 
 	public:
 		QElangTextureWidget(QWidget* parent = Q_NULLPTR);
-		~QElangTextureWidget();
 
 		void updateTick();
 		void updateMaterial(asset<Material>);
@@ -41,7 +40,6 @@ namespace el
 		asset<Camera> mMainCam;
 		asset<Painter> mSpritePainter;
 		asset<Material> mTexMat;
-		ShapeDebug* mGadgetPainter;
 
 		bool mSuppressScroll;
 		bool mMovingScreen;

@@ -23,7 +23,6 @@ namespace el
 		timer->start(1000.0f / 60.0f);
 		//
 
-
 		ui.view->sig_Start.connect([&]() {
 			gStage = &mStage;
 
@@ -35,8 +34,8 @@ namespace el
 			mTexSprite = gStage->make<Sprite>(asset<Material>(), mSpritePainter, "");
 			mTexSprite.add<Position>();
 
-			mGadgetPainter = new ShapeDebug();
-			mGadgetPainter->init(mMainCam);
+			//mGadgetPainter = new ShapeDebug();
+			//mGadgetPainter->init(mMainCam);
 			//auto movmat = mScene.materials.create("Move Handle");
 			//movmat->addTexture("gizmos.png");
 
@@ -76,9 +75,6 @@ namespace el
 			mTexSprite->batch();
 			mSpritePainter->paint();
 
-			batchDebuggingComponents(mGadgetPainter, color8(0, 255, 0, 255));
-			mGadgetPainter->draw();
-
 			/*gScene->paint();
 
 			for (auto e : mScene.objects.view<HitAABB>()) {
@@ -99,7 +95,6 @@ namespace el
 			} 
 			
 			mScene.atelier.draw();*/
-			//bindGizmoObjects(false);
 		});
 
 		connect(ui.hori, &QScrollBar::valueChanged, [&](int value) {
@@ -114,10 +109,6 @@ namespace el
 				ui.view->update();
 			}
 		});
-	}
-
-	QElangTextureWidget::~QElangTextureWidget() {
-
 	}
 
 	void QElangTextureWidget::connectMouseInput() {
