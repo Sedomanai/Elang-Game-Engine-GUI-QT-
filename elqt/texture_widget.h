@@ -6,14 +6,11 @@
 
 #include "../elang_qt_builder.h"
 #include "view_extension.h"
-#include "ui_texture_widget.h"
 
-
+#include <uic/ui_texture_widget.h>
 
 namespace el
 {
-	struct GizmoSprite : Sprite { using Sprite::Sprite; };
-
 	class _ELANGQT_EXPORT QElangTextureWidget : public QWidget
 	{
 		Q_OBJECT

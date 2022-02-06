@@ -10,6 +10,7 @@ namespace el {
 			mStage.storage<asset<Cell>>().reserve(300);
 			mStage.storage<Box>().reserve(300);
 			mStage.storage<Button>().reserve(300);
+			ev.stage = &mStage;
 		});
 	}
 
@@ -31,13 +32,14 @@ namespace el {
 				rect.t = -cell.uvUp * tex->height();
 
 				auto obj = gStage->make<Box>(rect);
+				obj.add<Button>(&ev);
 				obj.add<asset<Cell>>(it.second);
 			}
 		}
 	}
 
-	void QElangPaletteWidget::onHover(Entity self, Entity context) {
-		bind(mStage);
+	void PaletteEvent::onHover(Entity self, Entity context) {
+		bind(*stage);
 		if (gMouse.state(0) == eInput::ONCE) {
 			auto celldata = obj<asset<Cell>>(self);
 			if (celldata) {
