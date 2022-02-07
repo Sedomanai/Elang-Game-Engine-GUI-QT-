@@ -9,7 +9,6 @@ namespace el
 
 		if (gGUI.rc.painters.count() == 0) {
 			QElangView::sSig_GlobalGL.connect([&]() {
-				//gGUI.loadDebugProject();
 				bind(gGUI.rc);
 				loadElangProject((gGUI.enginePath() + "src/gui.elang").c_str(), true);
 				bind(gGUI.project);
@@ -88,10 +87,10 @@ namespace el
 		mTextureBox->setMinimumWidth(100);
 		connect(mTextureBox, &QComboBox::currentTextChanged, [&](const QString& text) {
 			//if (!mSuppressSignal) {
-				//if (gProject->textures.contains(text.toStdString())) {
-					//gAtlasEditorData.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
+				if (gProject->textures.contains(text.toStdString())) {
+					gAtlasEditorData.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
 					mCellsWidget->updateMaterial(gAtlasEditorData.currentMaterial);
-				//}
+				}
 			//}
 		});
 
@@ -135,11 +134,6 @@ namespace el
 		mCellsWidget = new QElangPaletteWidget(this);
 		mCellsWidget->setMinimumWidth(750);
 		
-		////////////// please do not delete... /////////
-		//mCellsWidget->view()->sig_Start.connect([&]() {
-		//	mCellsWidget->updateMaterial(NullEntity);
-		//	});
-
 		mViewLayout->addWidget(mCellsWidget);
 
 		addToolBarBreak();
@@ -222,13 +216,12 @@ namespace el
 
 
 	void AtlasEditor::refresh() {
-		//gAtlasEditorData.currentMaterial = gProject->make<Material>(gProject->materials, "_EL_AtlasTextureCurrentMaterial");
-		//gAtlasEditorData.currentMaterial->textures.clear();
-		//mTextureBox->clear();
-		//for (auto it : gGUI.project.textures) {
-		//	mTextureBox->addItem(QString::fromStdString(it.first));
-		//} 
-
+		gAtlasEditorData.currentMaterial = gProject->make<Material>(gProject->materials, "_EL_AtlasTextureCurrentMaterial");
+		gAtlasEditorData.currentMaterial->textures.clear();
+		mTextureBox->clear();
+		for (auto it : gGUI.project.textures) {
+			mTextureBox->addItem(QString::fromStdString(it.first));
+		} 
 	}
 
 
@@ -261,14 +254,11 @@ namespace el
 		addAction(mDebugLoad);
 		mDebugLoad->setShortcut(QKeySequence(Qt::Key::Key_P));
 		connect(mDebugLoad, &QAction::triggered, [&]() {
-
-			//mCellsWidget->updateMaterial(createSingleTextureMaterial("alex"));
 			if (gGUI.rc.painters.count() > 0) {
 				gGUI.loadDebugProject();
 				if (gGUI.open()) {
 					mCellsWidget->updateMaterial(createSingleTextureMaterial("alex"));
-					//auto mat = createSingleTextureMaterial("link");
-					//refresh();
+					refresh();
 				}
 			}
 		});

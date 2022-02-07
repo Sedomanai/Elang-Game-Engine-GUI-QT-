@@ -186,8 +186,9 @@ namespace el
 				syncScrollBars();
 				ui.view->update();
 
-				cout << "tex pos " << pos << endl;
-				cout <<" cam pos " << mMainCam->position() << endl;
+				cout << (uint32)texmat << endl;
+				cout << (uint32)texmat->textures[0] << endl;
+				cout << "==============" << endl;
 			}
 		}
 	}
@@ -203,6 +204,12 @@ namespace el
 		gStage->clear();
 		mTexture = gStage->make<Sprite>(asset<Material>(), mSpritePainter, "");
 		mTexture.add<Position>();
+
+		cout << "==============" << endl;
+		cout << (uint32)mTexture << endl;
+		cout << (uint32)mMainCam << endl;
+		cout << (uint32)mSpritePainter << endl;
+		cout << gStage->size() << endl;
 	}
 
 	void QElangTextureWidget::syncCamera() {
