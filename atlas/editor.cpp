@@ -2,20 +2,27 @@
 
 namespace el
 {
-	AtlasEditor::AtlasEditor(QWidget *parent, Project* gui)
-		: QMainWindow(parent)
+	AtlasEditor::AtlasEditor(QWidget* parent)
+		: QMainWindow(parent), mSuppressSignal(false)
 	{
 		ui.setupUi(this);
 
-		if (!gui) {
-			gui = new Project();
+		if (gGUI.rc.painters.count() == 0) {
 			QElangView::sSig_GlobalGL.connect([&]() {
-				bind(*gui);
-				loadElangProject("gui.elang");
+				bind(gGUI.rc);
+				loadElangProject((gGUI.enginePath() + "src/gui.elang").c_str(), true);
+				bind(gGUI.project);
 			});
 		}
-
 		
+		if (gGUI.open()) {
+			ui.actionNewProject->setVisible(false);
+			ui.actionLoadProject->setVisible(false);
+			ui.actionSaveProject->setVisible(false);
+			ui.actionSaveProjectAs->setVisible(false);
+			// change mode
+		}
+
 		// DO NOT CHANGE THE ORDER
 		setupLayout(); // do not touch
 		setupList(); // do not touch
@@ -25,7 +32,6 @@ namespace el
 		setupActions();
 
 		mAutoGen = new AtlasAutoGenerator(this);
-
 		setupInitView();
 	}
 
@@ -56,7 +62,6 @@ namespace el
 		clips.setDefaultDropAction(Qt::DropAction::MoveAction);
 		clips.setEditTriggers(QAbstractItemView::EditTrigger::EditKeyPressed);
 		mListLayout->addWidget(&clips);
-
 		//test
 		cells.addItem("testCell");
 		cells.addItem("testCell2");
@@ -77,17 +82,20 @@ namespace el
 
 	void AtlasEditor::setupCellMode() {
 		mCellToolbar = new QToolBar(this);
-
 		QLabel* label = new QLabel("  Set Texture  ", mCellToolbar);
-		QComboBox* box = new QComboBox(mCellToolbar);
-		box->setMinimumWidth(100);
+		mTextureBox = new QComboBox(mCellToolbar);
+		mTextureBox->setMinimumWidth(100);
+		connect(mTextureBox, &QComboBox::currentTextChanged, [&](const QString& text) {
+			//if (!mSuppressSignal) {
+				//if (gProject->textures.contains(text.toStdString())) {
+					//gAtlasEditorData.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
+					mCellsWidget->updateMaterial(gAtlasEditorData.currentMaterial);
+				//}
+			//}
+		});
+
 		mCellToolbar->addWidget(label);
-		mCellToolbar->addWidget(box);
-
-
-		//for (auto it : gProject->textures) {
-		//	box->addItem(QString::fromStdString(it.first));
-		//}
+		mCellToolbar->addWidget(mTextureBox);
 
 		mCellToolbar->addSeparator();
 
@@ -100,17 +108,7 @@ namespace el
 		});
 
 
-		/*auto setTexture = mCellToolbar->addAction("Set Texture", [&]() {
-			auto fileName = QFileDialog::getOpenFileName(this, tr("Background Texture"), gProjectDir.path(), tr("PNG (*.png)"));
-
-			if (!fileName.isEmpty()) {
-				gTexKey = gProjectDir.relativeFilePath(fileName).toStdString();
-				gTextures.load(fileName.toStdString(), gTexKey);
-
-				mCellsWidget->updateTexture(gTexKey);
-			}
-		}); setTexture->setShortcut(QKeySequence(Qt::Key_Space));
-
+		/*
 		autogen->setShortcut(QKeySequence(Qt::Key_F));
 		mCellToolbar->addSeparator();
 
@@ -131,11 +129,17 @@ namespace el
 			});
 		autoc->setShortcut(QKeySequence(Qt::Key_R));
 		mCellToolbar->addSeparator();
-
-		//mCellsWidget = new CellsWidget(this);
-		//mCellsWidget->setMinimumWidth(750);
-		//mViewLayout->addWidget(mCellsWidget);
 		*/
+
+		mCellsWidget = new QElangPaletteWidget(this);
+		mCellsWidget->setMinimumWidth(750);
+		
+		////////////// please do not delete... /////////
+		mCellsWidget->view()->sig_Start.connect([&]() {
+			mCellsWidget->updateMaterial(NullEntity);
+			});
+
+		mViewLayout->addWidget(mCellsWidget);
 
 		addToolBarBreak();
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mCellToolbar);
@@ -216,12 +220,56 @@ namespace el
 	}
 
 
+	void AtlasEditor::refresh() {
+		//gAtlasEditorData.currentMaterial = gProject->make<Material>(gProject->materials, "_EL_AtlasTextureCurrentMaterial");
+		//gAtlasEditorData.currentMaterial->textures.clear();
+		//mTextureBox->clear();
+		//for (auto it : gGUI.project.textures) {
+		//	mTextureBox->addItem(QString::fromStdString(it.first));
+		//} 
+
+	}
+
+
 	void AtlasEditor::setupActions() {
 		mViewActions = new QActionGroup(this);
 		mViewActions->addAction(ui.actionCellMode);
 		mViewActions->addAction(ui.actionOriginMode);
 		mViewActions->addAction(ui.actionClipMode);
 		mViewActions->setExclusionPolicy(QActionGroup::ExclusionPolicy::Exclusive);
+
+
+		connect(ui.actionNewProject, &QAction::triggered, [&]() {
+			gGUI.makeNewProject(this);
+			if (gGUI.open())
+				refresh();
+		});
+		connect(ui.actionSaveProject, &QAction::triggered, [&]() {
+			gGUI.saveCurrentProject();
+		});
+		connect(ui.actionSaveProjectAs, &QAction::triggered, [&]() {
+			gGUI.saveCurrentProjectAs(this);
+		});
+		connect(ui.actionLoadProject, &QAction::triggered, [&]() {
+			gGUI.loadCurrentProject(this);
+			if (gGUI.open())
+				refresh();
+		});
+
+		mDebugLoad = new QAction(this);
+		addAction(mDebugLoad);
+		mDebugLoad->setShortcut(QKeySequence(Qt::Key::Key_P));
+		connect(mDebugLoad, &QAction::triggered, [&]() {
+
+			if (gGUI.rc.painters.count() > 0) {
+				gGUI.loadDebugProject();
+				if (gGUI.open()) {
+					mCellsWidget->updateMaterial(createSingleTextureMaterial("alex"));
+					//auto mat = createSingleTextureMaterial("link");
+					//refresh();
+				}
+			}
+		});
 
 		//connect(ui.actionSet_Texture_As_Link, &QAction::triggered, [&]() {
 		//	cout << "TODO: set debug texture (link or alex)";

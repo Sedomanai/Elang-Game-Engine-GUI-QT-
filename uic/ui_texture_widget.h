@@ -14,7 +14,7 @@
 #include <QtWidgets/QGridLayout>
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QWidget>
-#include "view_extension.h"
+#include <elqt/extension/view.h>
 
 QT_BEGIN_NAMESPACE
 

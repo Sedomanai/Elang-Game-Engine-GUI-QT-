@@ -9,7 +9,7 @@
 #include <tools/controls.h>
 #include <common/signal.h>
 
-#include "../elang_qt_builder.h"
+#include "../../elang_qt_builder.h"
 
 namespace el {
 

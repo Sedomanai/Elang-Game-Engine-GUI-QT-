@@ -15,8 +15,6 @@
 #include <QtWidgets/QFrame>
 #include <QtWidgets/QGridLayout>
 #include <QtWidgets/QMainWindow>
-#include <QtWidgets/QMenu>
-#include <QtWidgets/QMenuBar>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QToolBar>
 #include <QtWidgets/QWidget>
@@ -33,14 +31,12 @@ public:
     QAction *actionSaveProject;
     QAction *actionSaveProjectAs;
     QAction *actionLoadProject;
+    QAction *actionExportAtlas;
+    QAction *actionImportAtlas;
+    QAction *actionReloadProject;
     QWidget *centralWidget;
     QGridLayout *gridLayout;
     QFrame *frame;
-    QMenuBar *menuBar;
-    QMenu *menuFile;
-    QMenu *menuView;
-    QMenu *menuDebug;
-    QMenu *menuSettings;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
 
@@ -48,25 +44,61 @@ public:
     {
         if (AtlasEditorUI->objectName().isEmpty())
             AtlasEditorUI->setObjectName(QString::fromUtf8("AtlasEditorUI"));
-        AtlasEditorUI->resize(900, 601);
+        AtlasEditorUI->resize(900, 600);
         AtlasEditorUI->setMinimumSize(QSize(900, 600));
         actionCellMode = new QAction(AtlasEditorUI);
         actionCellMode->setObjectName(QString::fromUtf8("actionCellMode"));
         actionCellMode->setCheckable(true);
+        QIcon icon;
+        icon.addFile(QString::fromUtf8(":/atlas/icons/atlas/cellmode.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionCellMode->setIcon(icon);
         actionOriginMode = new QAction(AtlasEditorUI);
         actionOriginMode->setObjectName(QString::fromUtf8("actionOriginMode"));
         actionOriginMode->setCheckable(true);
+        QIcon icon1;
+        icon1.addFile(QString::fromUtf8(":/atlas/icons/atlas/originmode.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionOriginMode->setIcon(icon1);
         actionClipMode = new QAction(AtlasEditorUI);
         actionClipMode->setObjectName(QString::fromUtf8("actionClipMode"));
         actionClipMode->setCheckable(true);
+        QIcon icon2;
+        icon2.addFile(QString::fromUtf8(":/atlas/icons/atlas/clipmode.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionClipMode->setIcon(icon2);
         actionNewProject = new QAction(AtlasEditorUI);
         actionNewProject->setObjectName(QString::fromUtf8("actionNewProject"));
+        QIcon icon3;
+        icon3.addFile(QString::fromUtf8(":/essentials/icons/essentials/new.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionNewProject->setIcon(icon3);
         actionSaveProject = new QAction(AtlasEditorUI);
         actionSaveProject->setObjectName(QString::fromUtf8("actionSaveProject"));
+        QIcon icon4;
+        icon4.addFile(QString::fromUtf8(":/essentials/icons/essentials/save.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionSaveProject->setIcon(icon4);
         actionSaveProjectAs = new QAction(AtlasEditorUI);
         actionSaveProjectAs->setObjectName(QString::fromUtf8("actionSaveProjectAs"));
+        QIcon icon5;
+        icon5.addFile(QString::fromUtf8(":/essentials/icons/essentials/save_as.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionSaveProjectAs->setIcon(icon5);
         actionLoadProject = new QAction(AtlasEditorUI);
         actionLoadProject->setObjectName(QString::fromUtf8("actionLoadProject"));
+        QIcon icon6;
+        icon6.addFile(QString::fromUtf8(":/essentials/icons/essentials/load.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionLoadProject->setIcon(icon6);
+        actionExportAtlas = new QAction(AtlasEditorUI);
+        actionExportAtlas->setObjectName(QString::fromUtf8("actionExportAtlas"));
+        QIcon icon7;
+        icon7.addFile(QString::fromUtf8(":/essentials/icons/essentials/export.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionExportAtlas->setIcon(icon7);
+        actionImportAtlas = new QAction(AtlasEditorUI);
+        actionImportAtlas->setObjectName(QString::fromUtf8("actionImportAtlas"));
+        QIcon icon8;
+        icon8.addFile(QString::fromUtf8(":/essentials/icons/essentials/import.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionImportAtlas->setIcon(icon8);
+        actionReloadProject = new QAction(AtlasEditorUI);
+        actionReloadProject->setObjectName(QString::fromUtf8("actionReloadProject"));
+        QIcon icon9;
+        icon9.addFile(QString::fromUtf8(":/essentials/icons/essentials/reload.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionReloadProject->setIcon(icon9);
         centralWidget = new QWidget(AtlasEditorUI);
         centralWidget->setObjectName(QString::fromUtf8("centralWidget"));
         gridLayout = new QGridLayout(centralWidget);
@@ -82,18 +114,6 @@ public:
         gridLayout->addWidget(frame, 0, 0, 1, 1);
 
         AtlasEditorUI->setCentralWidget(centralWidget);
-        menuBar = new QMenuBar(AtlasEditorUI);
-        menuBar->setObjectName(QString::fromUtf8("menuBar"));
-        menuBar->setGeometry(QRect(0, 0, 900, 22));
-        menuFile = new QMenu(menuBar);
-        menuFile->setObjectName(QString::fromUtf8("menuFile"));
-        menuView = new QMenu(menuBar);
-        menuView->setObjectName(QString::fromUtf8("menuView"));
-        menuDebug = new QMenu(menuBar);
-        menuDebug->setObjectName(QString::fromUtf8("menuDebug"));
-        menuSettings = new QMenu(menuBar);
-        menuSettings->setObjectName(QString::fromUtf8("menuSettings"));
-        AtlasEditorUI->setMenuBar(menuBar);
         mainToolBar = new QToolBar(AtlasEditorUI);
         mainToolBar->setObjectName(QString::fromUtf8("mainToolBar"));
         AtlasEditorUI->addToolBar(Qt::TopToolBarArea, mainToolBar);
@@ -101,19 +121,18 @@ public:
         statusBar->setObjectName(QString::fromUtf8("statusBar"));
         AtlasEditorUI->setStatusBar(statusBar);
 
-        menuBar->addAction(menuFile->menuAction());
-        menuBar->addAction(menuView->menuAction());
-        menuBar->addAction(menuSettings->menuAction());
-        menuBar->addAction(menuDebug->menuAction());
-        menuFile->addAction(actionNewProject);
-        menuFile->addAction(actionSaveProject);
-        menuFile->addAction(actionSaveProjectAs);
-        menuFile->addAction(actionLoadProject);
-        menuFile->addSeparator();
-        menuView->addAction(actionCellMode);
+        mainToolBar->addAction(actionNewProject);
+        mainToolBar->addAction(actionSaveProject);
+        mainToolBar->addAction(actionSaveProjectAs);
+        mainToolBar->addAction(actionLoadProject);
+        mainToolBar->addAction(actionReloadProject);
+        mainToolBar->addSeparator();
         mainToolBar->addAction(actionCellMode);
         mainToolBar->addAction(actionOriginMode);
         mainToolBar->addAction(actionClipMode);
+        mainToolBar->addSeparator();
+        mainToolBar->addAction(actionImportAtlas);
+        mainToolBar->addAction(actionExportAtlas);
 
         retranslateUi(AtlasEditorUI);
 
@@ -125,14 +144,14 @@ public:
         AtlasEditorUI->setWindowTitle(QCoreApplication::translate("AtlasEditorUI", "Atlas Editor", nullptr));
         actionCellMode->setText(QCoreApplication::translate("AtlasEditorUI", "Cell Mode", nullptr));
 #if QT_CONFIG(tooltip)
-        actionCellMode->setToolTip(QCoreApplication::translate("AtlasEditorUI", "Transition to Cell Edit Mode", nullptr));
+        actionCellMode->setToolTip(QCoreApplication::translate("AtlasEditorUI", "Cell Mode", nullptr));
 #endif // QT_CONFIG(tooltip)
 #if QT_CONFIG(shortcut)
         actionCellMode->setShortcut(QCoreApplication::translate("AtlasEditorUI", "1", nullptr));
 #endif // QT_CONFIG(shortcut)
         actionOriginMode->setText(QCoreApplication::translate("AtlasEditorUI", "Origin Mode", nullptr));
 #if QT_CONFIG(tooltip)
-        actionOriginMode->setToolTip(QCoreApplication::translate("AtlasEditorUI", "Transition to Origin Edit Mode", nullptr));
+        actionOriginMode->setToolTip(QCoreApplication::translate("AtlasEditorUI", "Origin Mode", nullptr));
 #endif // QT_CONFIG(tooltip)
 #if QT_CONFIG(shortcut)
         actionOriginMode->setShortcut(QCoreApplication::translate("AtlasEditorUI", "2", nullptr));
@@ -154,10 +173,12 @@ public:
 #if QT_CONFIG(shortcut)
         actionLoadProject->setShortcut(QCoreApplication::translate("AtlasEditorUI", "Ctrl+O", nullptr));
 #endif // QT_CONFIG(shortcut)
-        menuFile->setTitle(QCoreApplication::translate("AtlasEditorUI", "File", nullptr));
-        menuView->setTitle(QCoreApplication::translate("AtlasEditorUI", "Modes", nullptr));
-        menuDebug->setTitle(QCoreApplication::translate("AtlasEditorUI", "Debug", nullptr));
-        menuSettings->setTitle(QCoreApplication::translate("AtlasEditorUI", "Settings", nullptr));
+        actionExportAtlas->setText(QCoreApplication::translate("AtlasEditorUI", "Export Atlas", nullptr));
+        actionImportAtlas->setText(QCoreApplication::translate("AtlasEditorUI", "Import Atlas", nullptr));
+        actionReloadProject->setText(QCoreApplication::translate("AtlasEditorUI", "Reload Project", nullptr));
+#if QT_CONFIG(tooltip)
+        actionReloadProject->setToolTip(QCoreApplication::translate("AtlasEditorUI", "Reload Project", nullptr));
+#endif // QT_CONFIG(tooltip)
     } // retranslateUi
 
 };

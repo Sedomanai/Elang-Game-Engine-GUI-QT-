@@ -3,11 +3,11 @@
 #include <QWidget>
 #include <elements/basic.h>
 #include <elements/sprite.h>
-
-#include "../elang_qt_builder.h"
-#include "view_extension.h"
-
 #include <uic/ui_texture_widget.h>
+
+#include "../extension/view.h"
+#include "../../elang_qt_globals.h"
+#include "../../elang_qt_builder.h"
 
 namespace el
 {
@@ -21,14 +21,16 @@ namespace el
 		void updateTick();
 		void updateMaterial(asset<Material>);
 		QElangViewSignaled* view();
+
+
 	protected:
 		Ui::QElangTextureWidgetUI ui;
 		virtual void onTextureUpdate(asset<Texture>) {};
+		virtual void refresh();
 
 		Qt::CursorShape mMoveCursor;
 
 		Stage mStage;
-		obj<Sprite> mTexSprite;
 		int mWinWidth, mWinHeight;
 
 		aabb mCamBounds;
@@ -39,14 +41,15 @@ namespace el
 
 		asset<Camera> mMainCam;
 		asset<Painter> mSpritePainter;
-		asset<Material> mTexMat;
+
+		obj<Sprite> mTexture;
 
 		bool mSuppressScroll;
 		bool mMovingScreen;
 
 		void connectMouseInput();
-		void syncCamera();
-		void syncScrollBars();
+		void syncCamera(); // fixed
+		void syncScrollBars(); // fixed
 		void showEvent(QShowEvent* e) override;
 	};
 

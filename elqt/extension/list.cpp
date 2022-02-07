@@ -1,4 +1,4 @@
-#include "list_extension.h"
+#include "list.h"
 
 namespace el {
 	QListExtension::QListExtension(QWidget *parent)

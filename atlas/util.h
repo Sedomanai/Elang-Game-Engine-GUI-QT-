@@ -5,8 +5,8 @@
 #include <qdir.h>
 #include <tools/material.h>
 
-#include "../elqt/list_extension.h"
-#include "../elqt/palette_widget.h"
+#include "../elqt/extension/list.h"
+#include "../elqt/widget/palette.h"
 
 namespace el
 {

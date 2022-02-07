@@ -53,7 +53,7 @@
   <customwidget>
    <class>el::QElangViewSignaled</class>
    <extends>QOpenGLWidget</extends>
-   <header>view_extension.h</header>
+   <header location="global">elqt/extension/view.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

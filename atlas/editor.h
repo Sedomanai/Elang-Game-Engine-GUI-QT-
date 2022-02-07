@@ -9,10 +9,13 @@
 #include <qlabel.h>
 #include <apparatus/loader.h>
 
-#include "../elqt/palette_widget.h"
+#include "../elqt/widget/palette.h"
 #include "../elang_qt_builder.h"
+#include "../elang_qt_globals.h"
+#include "cells_widget.h"
 #include "auto_gen.h"
 #include "util.h"
+
 
 #include <uic/ui_editor.h>
 
@@ -30,12 +33,13 @@ namespace el
 		};
 
 	public:
-		AtlasEditor(QWidget* parent = Q_NULLPTR, Project* gui = 0);
+		AtlasEditor(QWidget* parent = Q_NULLPTR);
 
 		void loop();
 		void initializeGLWidgets();
 
 	private:
+		bool mSuppressSignal;
 
 		//Set up all actions and their 
 		void setupActions();
@@ -52,12 +56,15 @@ namespace el
 		//Set up initial view upon opening Atlas Editor
 		void setupInitView();
 
-		Project* mGui;
+		// IMPORTANT: refresh atlas upon project initiation and update everything in atlas editor
+		// Not used in subwindow mode
+		void refresh();
+
 		QVBoxLayout* mViewLayout;
 		QVBoxLayout* mListLayout;
 		QAction* mSetGhost;
 		QToolBar* mCellToolbar;
-		//CellsWidget* mCellsWidget;
+		QElangPaletteWidget* mCellsWidget;
 
 		QToolBar* mOriginToolbar;
 		//OriginView* mOriginView;
@@ -66,6 +73,7 @@ namespace el
 		//ClipsView* mClipsView;
 
 		AtlasAutoGenerator* mAutoGen;
+		QComboBox* mTextureBox;
 
 		ViewMode mViewMode;
 		bool mAcceptClose;
@@ -73,6 +81,8 @@ namespace el
 		QTimer* mTimer;
 		QActionGroup* mViewActions;
 		QString mLastSavedPath;
+
+		QAction* mDebugLoad;
 
 		Ui::AtlasEditorUI ui;
 	};

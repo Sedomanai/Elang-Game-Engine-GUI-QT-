@@ -1,0 +1,16 @@
+<RCC>
+  <qresource prefix="essentials">
+    <file>icons/essentials/export.png</file>
+    <file>icons/essentials/import.png</file>
+    <file>icons/essentials/load.png</file>
+    <file>icons/essentials/new.png</file>
+    <file>icons/essentials/reload.png</file>
+    <file>icons/essentials/save.png</file>
+    <file>icons/essentials/save_as.png</file>
+  </qresource>
+  <qresource prefix="atlas">
+    <file>icons/atlas/cellmode.png</file>
+    <file>icons/atlas/clipmode.png</file>
+    <file>icons/atlas/originmode.png</file>
+  </qresource>
+</RCC>
