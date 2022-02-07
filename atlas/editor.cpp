@@ -9,9 +9,10 @@ namespace el
 
 		if (gGUI.rc.painters.count() == 0) {
 			QElangView::sSig_GlobalGL.connect([&]() {
-				bind(gGUI.rc);
-				loadElangProject((gGUI.enginePath() + "src/gui.elang").c_str(), true);
-				bind(gGUI.project);
+				gGUI.loadDebugProject();
+				//bind(gGUI.rc);
+				//loadElangProject((gGUI.enginePath() + "src/gui.elang").c_str(), true);
+				//bind(gGUI.project);
 			});
 		}
 		
@@ -261,14 +262,15 @@ namespace el
 		mDebugLoad->setShortcut(QKeySequence(Qt::Key::Key_P));
 		connect(mDebugLoad, &QAction::triggered, [&]() {
 
-			if (gGUI.rc.painters.count() > 0) {
-				gGUI.loadDebugProject();
-				if (gGUI.open()) {
-					mCellsWidget->updateMaterial(createSingleTextureMaterial("alex"));
-					//auto mat = createSingleTextureMaterial("link");
-					//refresh();
-				}
-			}
+			mCellsWidget->updateMaterial(createSingleTextureMaterial("alex"));
+			//if (gGUI.rc.painters.count() > 0) {
+			//	gGUI.loadDebugProject();
+			//	if (gGUI.open()) {
+			//		mCellsWidget->updateMaterial(createSingleTextureMaterial("alex"));
+			//		//auto mat = createSingleTextureMaterial("link");
+			//		//refresh();
+			//	}
+			//}
 		});
 
 		//connect(ui.actionSet_Texture_As_Link, &QAction::triggered, [&]() {
