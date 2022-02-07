@@ -32,6 +32,14 @@ namespace el {
 		}
 
 		if (tex->atlas) {
+			mCellShapes->line.forceUnlock();
+			mHighlight->line.forceUnlock();
+			mHighlight->fill.forceUnlock();
+			mCellShapes->line.camera = mMainCam;
+			mCellShapes->fill.camera = mMainCam;
+			mHighlight->line.camera = mMainCam;
+			mHighlight->fill.camera = mMainCam;
+
 			atlas = tex->atlas;
 			auto& cells = atlas->cells;
 			for (auto it : cells) {
@@ -49,17 +57,6 @@ namespace el {
 			}
 			mCellShapes->line.flags |= Painter::LOCKED;
 		}
-	}
-
-	void QElangPaletteWidget::refresh() {
-		mCellShapes->line.forceUnlock();
-		mHighlight->line.forceUnlock();
-		mHighlight->fill.forceUnlock();
-		QElangTextureWidget::refresh();
-		mCellShapes->line.camera = mMainCam;
-		mCellShapes->fill.camera = mMainCam;
-		mHighlight->line.camera = mMainCam;
-		mHighlight->fill.camera = mMainCam;
 	}
 
 	void QElangPaletteWidget::coloring(Box& box) {

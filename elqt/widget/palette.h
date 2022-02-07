@@ -20,7 +20,6 @@ namespace el {
 		asset<Atlas> atlas;
 		single_signal<asset<Cell>> sig_Clicked;
 	private:
-		void refresh() override;
 		ShapeDebug* mCellShapes, * mHighlight;
 		void coloring(Box& box);
 		void onTextureUpdate(asset<Texture>) override;

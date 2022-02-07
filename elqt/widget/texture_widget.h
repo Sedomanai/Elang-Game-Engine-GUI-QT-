@@ -26,7 +26,7 @@ namespace el
 	protected:
 		Ui::QElangTextureWidgetUI ui;
 		virtual void onTextureUpdate(asset<Texture>) {};
-		virtual void refresh();
+		void refresh();
 
 		Qt::CursorShape mMoveCursor;
 
