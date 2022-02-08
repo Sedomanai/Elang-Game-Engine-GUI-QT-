@@ -25,7 +25,7 @@ namespace el
 
 	protected:
 		Ui::QElangTextureWidgetUI ui;
-		virtual void onTextureUpdate(asset<Texture>) {};
+		virtual void onTextureUpdate() {};
 		void refresh();
 
 		Qt::CursorShape mMoveCursor;
@@ -41,8 +41,9 @@ namespace el
 
 		asset<Camera> mMainCam;
 		asset<Painter> mSpritePainter;
+		asset<Texture> mTexture;
 
-		obj<Sprite> mTexture;
+		obj<Sprite> mTexObj;
 
 		bool mSuppressScroll;
 		bool mMovingScreen;

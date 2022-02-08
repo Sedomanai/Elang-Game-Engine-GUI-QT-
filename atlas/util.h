@@ -10,15 +10,16 @@
 
 namespace el
 {
-	struct AtlasEditorData
+	struct AtlasUtility
 	{
 		QListExtension *cellList, *clipList;
 		sizet cellRow = -1, clipRow = -1;
 		asset<Material> currentMaterial;
 		float resolution = 1.0f;
+		hashmap<Entity, QListWidgetItem*> cellItems, clipItems;
 	};
 
-	inline AtlasEditorData gAtlasEditorData;
+	inline AtlasUtility gAtlsUtil;
 
 	//using EditorClip = vector<string>;
 	//inline string gTexKey;

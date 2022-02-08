@@ -64,7 +64,7 @@ namespace el
 		QVBoxLayout* mListLayout;
 		QAction* mSetGhost;
 		QToolBar* mCellToolbar;
-		QElangPaletteWidget* mCellsWidget;
+		CellsWidget *mCellsWidget;
 
 		QToolBar* mOriginToolbar;
 		//OriginView* mOriginView;

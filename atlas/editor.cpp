@@ -1,4 +1,5 @@
 #include "editor.h"
+#include <qopenglcontext>
 
 namespace el
 {
@@ -47,16 +48,16 @@ namespace el
 	}
 
 	void AtlasEditor::setupList() {
-		gAtlasEditorData.cellList = new QListExtension(this);
-		auto& cells = *gAtlasEditorData.cellList;
+		gAtlsUtil.cellList = new QListExtension(this);
+		auto& cells = *gAtlsUtil.cellList;
 		cells.setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
 		cells.setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
 		cells.setDefaultDropAction(Qt::DropAction::MoveAction);
 		cells.setEditTriggers(QAbstractItemView::EditTrigger::EditKeyPressed);
 		mListLayout->addWidget(&cells);
 
-		gAtlasEditorData.clipList = new QListExtension(this);
-		auto& clips = *gAtlasEditorData.clipList;
+		gAtlsUtil.clipList = new QListExtension(this);
+		auto& clips = *gAtlsUtil.clipList;
 		clips.setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
 		clips.setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
 		clips.setDefaultDropAction(Qt::DropAction::MoveAction);
@@ -73,7 +74,7 @@ namespace el
 	void AtlasEditor::setupInitView() {
 		mViewMode = ViewMode::CELL;
 		//mCellsWidget->showEditor();
-		gAtlasEditorData.clipList->hide();
+		gAtlsUtil.clipList->hide();
 		//mOriginView->hide();
 		mOriginToolbar->hide();
 		//mClipsView->hide();
@@ -86,32 +87,34 @@ namespace el
 		mTextureBox = new QComboBox(mCellToolbar);
 		mTextureBox->setMinimumWidth(100);
 		connect(mTextureBox, &QComboBox::currentTextChanged, [&](const QString& text) {
-			cout << "txtchng before mat" << (uint32)gAtlasEditorData.currentMaterial << endl;
-			//if (!mSuppressSignal) {
-				if (gProject->textures.contains(text.toStdString())) {
-					gAtlasEditorData.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
-					mCellsWidget->updateMaterial(gAtlasEditorData.currentMaterial);
-				}
-			//}
-			cout << "txtchng after  mat" << (uint32)gAtlasEditorData.currentMaterial << endl;
+			if (gProject->textures.contains(text.toStdString())) {
+				gAtlsUtil.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
+				mCellsWidget->updateMaterial(gAtlsUtil.currentMaterial);
+			}
 		});
 
 		mCellToolbar->addWidget(label);
 		mCellToolbar->addWidget(mTextureBox);
-
 		mCellToolbar->addSeparator();
 
 		auto autogen = mCellToolbar->addAction("Auto Generate", [&]() {
 			mAutoGen->exec();
 			if (mAutoGen->gen) {
-				//mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
+				mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
 				mAutoGen->gen = false;
 			}
-		});
+		}); autogen->setShortcut(QKeySequence(Qt::Key_F));
+
+		auto sort = mCellToolbar->addAction("Sort List", [&]() {
+			mAutoGen->exec();
+			if (mAutoGen->gen) {
+				mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
+				mAutoGen->gen = false;
+			}
+			}); autogen->setShortcut(QKeySequence(Qt::Key_F));
 
 
 		/*
-		autogen->setShortcut(QKeySequence(Qt::Key_F));
 		mCellToolbar->addSeparator();
 
 
@@ -133,7 +136,7 @@ namespace el
 		mCellToolbar->addSeparator();
 		*/
 
-		mCellsWidget = new QElangPaletteWidget(this);
+		mCellsWidget = new CellsWidget(this);
 		mCellsWidget->setMinimumWidth(750);
 		mViewLayout->addWidget(mCellsWidget);
 
@@ -217,14 +220,13 @@ namespace el
 
 
 	void AtlasEditor::refresh() {
-		gAtlasEditorData.currentMaterial = gProject->make<Material>(gProject->materials, "_EL_AtlasTextureCurrentMaterial");
-		gAtlasEditorData.currentMaterial->textures.clear();
+		gAtlsUtil.currentMaterial = gProject->make<Material>(gProject->materials, "_EL_AtlasTextureCurrentMaterial");
+		gAtlsUtil.currentMaterial->textures.clear();
 		mTextureBox->clear();
 		for (auto it : gGUI.project.textures) {
 			mTextureBox->addItem(QString::fromStdString(it.first));
 		} 
 	}
-
 
 	void AtlasEditor::setupActions() {
 		mViewActions = new QActionGroup(this);
@@ -232,7 +234,6 @@ namespace el
 		mViewActions->addAction(ui.actionOriginMode);
 		mViewActions->addAction(ui.actionClipMode);
 		mViewActions->setExclusionPolicy(QActionGroup::ExclusionPolicy::Exclusive);
-
 
 		connect(ui.actionNewProject, &QAction::triggered, [&]() {
 			gGUI.makeNewProject(this);
@@ -255,6 +256,7 @@ namespace el
 		mDebugLoad = new QAction(this);
 		addAction(mDebugLoad);
 		mDebugLoad->setShortcut(QKeySequence(Qt::Key::Key_P));
+
 		connect(mDebugLoad, &QAction::triggered, [&]() {
 			if (gGUI.rc.painters.count() > 0) {
 				mCellsWidget->view()->makeCurrent();

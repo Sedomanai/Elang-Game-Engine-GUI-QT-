@@ -1,63 +1,79 @@
 #include "palette.h"
 
+#include <qopenglcontext.h>
+
 namespace el {
 
 	QElangPaletteWidget::QElangPaletteWidget(QWidget* parent)
-		: QElangTextureWidget(parent)
+		: QElangTextureWidget(parent), mHighlightBatched(false)
 	{
 		ui.view->setMouseTracking(true);
 
 		ui.view->sig_Start.connect([&]() {
 			bind(mStage);
-			mStage.storage<asset<Cell>>().reserve(300);
-			mStage.storage<Box>().reserve(300);
-			mStage.storage<Button>().reserve(300);
+			//mStage.storage<asset<Cell>>().reserve(300);
+			//mStage.storage<Box>().reserve(300);
+			//mStage.storage<Button>().reserve(300);
+
 			mCellShapes = new ShapeDebug;
-			mHighlight = new ShapeDebug;
 			mCellShapes->init(mMainCam);
-			mHighlight->init(mMainCam);
+
+			mHighlighter = new ShapeDebug;
+			mHighlighter->init(mMainCam);
 		});
 
 		ui.view->sig_Paint.connect([&]() {
-			bind(mStage);
-			mCellShapes->draw();
-			mHighlight->draw();
+			if (gGUI.open()) {
+				bind(mStage);
+				mCellShapes->draw();
+				mHighlighter->draw();
+				mHighlightBatched = false;
+			}
 		});
 	}
 
-	void QElangPaletteWidget::onTextureUpdate(asset<Texture> tex) {
+	void QElangPaletteWidget::onTextureUpdate() {
+		assert(gGUI.open());
+		assert(mTexture);
+
 		bind(mStage);
-		for (auto e : gStage->view<Button>()) {
-			gStage->destroy(e);
-		}
 
-		mCellShapes->line.forceUnlock();
-		mHighlight->line.forceUnlock();
-		mHighlight->fill.forceUnlock();
+		auto view = gStage->view<Button>();
+		gStage->destroy(view.begin(), view.end());
 
-		if (tex->atlas) {
-			mCellShapes->line.camera = mMainCam;
-			mCellShapes->fill.camera = mMainCam;
-			mHighlight->line.camera = mMainCam;
-			mHighlight->fill.camera = mMainCam;
-
-			atlas = tex->atlas;
+		forceUnlockDebuggers();
+		resetMainCamera();
+		if (mTexture->atlas) {
+			atlas = mTexture->atlas;
 			auto& cells = atlas->cells;
+			cout << atlas->cells.count() << endl;
 			for (auto it : cells) {
 				auto& cell = *asset<Cell>(it.second);
 				Box rect;
-				rect.l = cell.uvLeft * tex->width();
-				rect.r = cell.uvRight * tex->width();
-				rect.b = -cell.uvDown * tex->height();
-				rect.t = -cell.uvUp * tex->height();
+				rect.l = cell.uvLeft * mTexture->width();
+				rect.r = cell.uvRight * mTexture->width();
+				rect.b = -cell.uvDown * mTexture->height();
+				rect.t = -cell.uvUp * mTexture->height();
 
-				auto obj = gStage->make<Box>(rect);
-				obj.add<Button>(this);
-				obj.add<asset<Cell>>(it.second);
-				mCellShapes->line.batchAABB(*obj, color8(0, 255, 55, 255));
+				auto holder = mStage.make<CellHolder>(it.second, rect);
+				holder.add<Button>(this);
+				mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
 			}
 			mCellShapes->line.flags |= Painter::LOCKED;
 		}
+	}
+
+	void QElangPaletteWidget::forceUnlockDebuggers() {
+		mCellShapes->line.forceUnlock();
+		mHighlighter->line.forceUnlock();
+		mHighlighter->fill.forceUnlock();
+	}
+
+	void QElangPaletteWidget::resetMainCamera() {
+		mCellShapes->line.camera = mMainCam;
+		mCellShapes->fill.camera = mMainCam;
+		mHighlighter->line.camera = mMainCam;
+		mHighlighter->fill.camera = mMainCam;
 	}
 
 	void QElangPaletteWidget::coloring(Box& box) {
@@ -67,23 +83,26 @@ namespace el {
 			color.g = 255;
 			color.b = 30;
 		}
-		mHighlight->line.batchAABB(box, color);
+		mHighlighter->line.batchAABB(box, color);
 		color.a = 80;
-		mHighlight->fill.batchAABB(box, color);
+		mHighlighter->fill.batchAABB(box, color);
 	}
 
 	void QElangPaletteWidget::onHover(Entity self, Entity context) {
 		bind(mStage);
-		auto box = obj<Box>(self);
-		if (box && mHighlight->line.currentBatchCount() == 0) {
-			coloring(*box);
-		}
-
-		if (gMouse.state(0) == eInput::LIFT) {
-			auto celldata = obj<asset<Cell>>(self);
-			if (celldata) {
-				sig_Clicked.invoke(*celldata);
+		auto holder = obj<CellHolder>(self);
+		if (holder) {
+			if (!mHighlightBatched) {
+				coloring(holder->rect);
+				mHighlightBatched = true;
+			}
+			
+			if (gMouse.state(0) == eInput::LIFT) {
+				if (holder) {
+					sig_Clicked.invoke(*holder);
+				}
 			}
 		}
+
 	}
 }

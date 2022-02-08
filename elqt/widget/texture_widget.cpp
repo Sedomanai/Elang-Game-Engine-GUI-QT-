@@ -6,13 +6,15 @@
 #include <apparatus/ui.h>
 
 #include <qtimer.h>
+#include <qopenglcontext.h>
 
 namespace el
 {
 	QElangViewSignaled* QElangTextureWidget::view(){ return ui.view; }
 
 	QElangTextureWidget::QElangTextureWidget(QWidget* parent)
-		: QWidget(parent), mMoveCursor(Qt::SizeAllCursor), mSuppressScroll(false), mMovingScreen(false) {
+		: QWidget(parent), mMoveCursor(Qt::SizeAllCursor), mSuppressScroll(false), mMovingScreen(false) 
+	{
 		ui.setupUi(this);
 
 		// test debug
@@ -36,11 +38,12 @@ namespace el
 
 		
 		ui.view->sig_Resize.connect([&](int w, int h) {
+			mWinWidth = w;
+			mWinHeight = h;
+			updateViewport(-w / 2.0f, w / 2.0f, -h / 2.0f, h / 2.0f);
+
 			if (gGUI.open()) {
 				bind(mStage);
-				mWinWidth = w;
-				mWinHeight = h;
-				updateViewport(-w / 2.0f, w / 2.0f, -h / 2.0f, h / 2.0f);
 				syncCamera();
 				syncScrollBars();
 			}
@@ -53,7 +56,7 @@ namespace el
 			if (gGUI.open()) {
 				bind(mStage);
 				updateViewport(-mWinWidth / 2.0f, mWinWidth / 2.0f, -mWinHeight / 2.0f, mWinHeight / 2.0f); // safety net
-				mTexture->batch();
+				mTexObj->batch();
 				mSpritePainter->paint();
 			}
 			
@@ -171,16 +174,17 @@ namespace el
 
 	void QElangTextureWidget::updateMaterial(asset<Material> texmat) {
 		if (gGUI.open()) {
+			view()->makeCurrent();
 			refresh();
 			if (texmat && texmat->hasTexture()) {
-				auto& tex = texmat->textures[0];
-				mTexture->material = texmat;
-				auto& pos = mTexture.get<Position>();
-				pos.x = tex->width() / 2;
-				pos.y = -(int32)tex->height() / 2;
-				mTexture->update(mTexture);
+				mTexture = texmat->textures[0];
+				mTexObj->material = texmat;
+				auto& pos = mTexObj.get<Position>();
+				pos.x = mTexture->width() / 2;
+				pos.y = -(int32)mTexture->height() / 2;
+				mTexObj->update(mTexObj);
 
-				onTextureUpdate(tex);
+				onTextureUpdate();
 				syncCamera();
 				syncScrollBars();
 				ui.view->update();
@@ -197,14 +201,19 @@ namespace el
 
 		mSpritePainter = gProject->painters["Sprite Painter"];
 
-		gStage->clear();
-		mTexture = gStage->make<Sprite>(asset<Material>(), mSpritePainter, "");
-		mTexture.add<Position>();
+		static bool makeOnce = true;
+		if (makeOnce) {
+			mTexObj = gStage->make<Sprite>(asset<Material>(), mSpritePainter, "");
+			mTexObj.add<Position>();
+			makeOnce = false;
+		}
 	}
 
 	void QElangTextureWidget::syncCamera() {
-		auto material = mTexture->material;
-		if (mMainCam && material && material->hasTexture()) {
+		assert(gGUI.open());
+
+		auto material = mTexObj->material;
+		if (mMainCam && mTexture) {
 			auto& cam = *mMainCam;
 			float ix = cam.scale().x;
 			float iy = cam.scale().y;
@@ -213,9 +222,8 @@ namespace el
 			prevOffset.x = (cam.position().x - mCamBounds.l);
 			prevOffset.y = -(cam.position().y - mCamBounds.t);
 
-			auto tex = material->textures[0];
-			float bandX = max(0, tex->width() - mWinWidth * ix);
-			float bandY = max(0, tex->height() - mWinHeight * iy);
+			float bandX = max(0, mTexture->width() - mWinWidth * ix);
+			float bandY = max(0, mTexture->height() - mWinHeight * iy);
 
 			mCamBounds.l = mWinWidth * ix * 0.5f;
 			mCamBounds.t = -(mWinHeight * iy * 0.5f);
@@ -229,28 +237,29 @@ namespace el
 		}
 	}
 	void QElangTextureWidget::syncScrollBars() {
-		auto material = mTexture->material;
-		if (mMainCam && material && material->hasTexture()) {
+		assert(gGUI.open());
+
+		auto material = mTexObj->material;
+		if (mMainCam && mTexture) {
 			auto& cam = *mMainCam;
 			float ix = mWinWidth * cam.scale().x;
 			float iy = mWinHeight * cam.scale().y;
 
-			auto tex = material->textures[0];
-			if (tex->width() > ix) {
+			if (mTexture->width() > ix) {
 				ui.hori->setEnabled(true);
-				int count = tex->width() / ix;
+				int count = mTexture->width() / ix;
 				ui.hori->setRange(0, count);
-				mScrollStep.x = (tex->width() - ix) / (float)count;
+				mScrollStep.x = (mTexture->width() - ix) / (float)count;
 			}
 			else {
 				ui.hori->setEnabled(false);
 			}
 
-			if (tex->height() > iy) {
+			if (mTexture->height() > iy) {
 				ui.verti->setEnabled(true);
-				int count = tex->height() / iy;
+				int count = mTexture->height() / iy;
 				ui.verti->setRange(0, count);
-				mScrollStep.y = (tex->height() - iy) / (float)count;
+				mScrollStep.y = (mTexture->height() - iy) / (float)count;
 			}
 			else {
 				ui.verti->setEnabled(false);

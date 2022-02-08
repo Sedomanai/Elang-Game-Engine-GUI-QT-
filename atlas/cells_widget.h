@@ -1,19 +1,19 @@
 #pragma once
-#include "../elqt/widget/texture_widget.h"
+#include "../elqt/widget/palette.h"
+#include "util.h"
 //
 //#include <loaders/atlas.h>
 //#include "atlas_util.h"
 //#include <qt_texture_widget.h>
 
 namespace el {
-	struct CellsWidget : public QElangTextureWidget
+	struct CellsWidget : public QElangPaletteWidget
 	{
 		Q_OBJECT
 	public:
 		CellsWidget(QWidget* parent = Q_NULLPTR);
-		~CellsWidget();
 
-		//void autoGenCells(uint sortorder, uint margin);
+		void autoGenCells(uint sortorder, uint margin);
 		//void combineCells();
 		//void showEditor();
 		//void hideEditor();
@@ -24,6 +24,8 @@ namespace el {
 		//void deleteSelected();
 
 	private:
+		void onHover(Entity self, Entity context) override {};
+
 		enum CursorState
 		{
 			NONE = 0,
@@ -51,9 +53,12 @@ namespace el {
 		bool mSuppressSelect;
 		bool mConnected;
 
-		aabb mSelectRect, mHighlight;
+		Box mSelectRect, mHighlightRect;
+		vector<obj<CellHolder>> mSelects;
+
 		uint mCursorState;
 
+		void onTextureUpdate() override;
 		void connectMouseInput();
 		void connectList();
 		void recreateList();

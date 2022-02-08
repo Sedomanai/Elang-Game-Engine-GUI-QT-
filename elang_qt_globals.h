@@ -40,9 +40,10 @@ namespace el
 		}
 
 		void loadDebugProject() {
+			mProjectPath = "D:/Programming/_Elang/test/project.elang";
 			bind(project);
 			mProjectOpen = true;
-			loadElangProject("D:/Programming/_Elang/test/project.elang", true);
+			loadElangProject(mProjectPath.c_str(), true);
 		}
 
 		void saveCurrentProject() {
