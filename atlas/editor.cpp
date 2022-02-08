@@ -86,12 +86,14 @@ namespace el
 		mTextureBox = new QComboBox(mCellToolbar);
 		mTextureBox->setMinimumWidth(100);
 		connect(mTextureBox, &QComboBox::currentTextChanged, [&](const QString& text) {
+			cout << "txtchng before mat" << (uint32)gAtlasEditorData.currentMaterial << endl;
 			//if (!mSuppressSignal) {
 				if (gProject->textures.contains(text.toStdString())) {
 					gAtlasEditorData.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
 					mCellsWidget->updateMaterial(gAtlasEditorData.currentMaterial);
 				}
 			//}
+			cout << "txtchng after  mat" << (uint32)gAtlasEditorData.currentMaterial << endl;
 		});
 
 		mCellToolbar->addWidget(label);
@@ -133,7 +135,6 @@ namespace el
 
 		mCellsWidget = new QElangPaletteWidget(this);
 		mCellsWidget->setMinimumWidth(750);
-		
 		mViewLayout->addWidget(mCellsWidget);
 
 		addToolBarBreak();
@@ -245,6 +246,7 @@ namespace el
 			gGUI.saveCurrentProjectAs(this);
 		});
 		connect(ui.actionLoadProject, &QAction::triggered, [&]() {
+			mCellsWidget->view()->makeCurrent();
 			gGUI.loadCurrentProject(this);
 			if (gGUI.open())
 				refresh();
@@ -255,9 +257,9 @@ namespace el
 		mDebugLoad->setShortcut(QKeySequence(Qt::Key::Key_P));
 		connect(mDebugLoad, &QAction::triggered, [&]() {
 			if (gGUI.rc.painters.count() > 0) {
+				mCellsWidget->view()->makeCurrent();
 				gGUI.loadDebugProject();
 				if (gGUI.open()) {
-					mCellsWidget->updateMaterial(createSingleTextureMaterial("alex"));
 					refresh();
 				}
 			}

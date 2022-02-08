@@ -31,10 +31,11 @@ namespace el {
 			gStage->destroy(e);
 		}
 
+		mCellShapes->line.forceUnlock();
+		mHighlight->line.forceUnlock();
+		mHighlight->fill.forceUnlock();
+
 		if (tex->atlas) {
-			mCellShapes->line.forceUnlock();
-			mHighlight->line.forceUnlock();
-			mHighlight->fill.forceUnlock();
 			mCellShapes->line.camera = mMainCam;
 			mCellShapes->fill.camera = mMainCam;
 			mHighlight->line.camera = mMainCam;

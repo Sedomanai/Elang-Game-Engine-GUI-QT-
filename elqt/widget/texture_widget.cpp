@@ -52,7 +52,6 @@ namespace el
 
 			if (gGUI.open()) {
 				bind(mStage);
-				glClearColor(0.2f, 0.3f, 0.2f, 1.0f);
 				updateViewport(-mWinWidth / 2.0f, mWinWidth / 2.0f, -mWinHeight / 2.0f, mWinHeight / 2.0f); // safety net
 				mTexture->batch();
 				mSpritePainter->paint();
@@ -102,7 +101,7 @@ namespace el
 				if (gMouse.state(1) == eInput::ONCE) {
 					setCursor(QCursor(mMoveCursor));
 					mMoveCenter = gMouse.currentPosition();
-					vec2 center = *mMainCam * mMoveCenter;
+					//vec2 center = *mMainCam * mMoveCenter;
 				} updateAllButtons(mMainCam);
 			}
 		});
@@ -185,16 +184,13 @@ namespace el
 				syncCamera();
 				syncScrollBars();
 				ui.view->update();
-
-				cout << (uint32)texmat << endl;
-				cout << (uint32)texmat->textures[0] << endl;
-				cout << "==============" << endl;
 			}
 		}
 	}
 
 	void QElangTextureWidget::refresh() {
 		bind(mStage);
+		glClearColor(0.2f, 0.3f, 0.2f, 1.0f);
 
 		mMainCam = gProject->cameras["Main Camera"];
 		mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
@@ -204,12 +200,6 @@ namespace el
 		gStage->clear();
 		mTexture = gStage->make<Sprite>(asset<Material>(), mSpritePainter, "");
 		mTexture.add<Position>();
-
-		cout << "==============" << endl;
-		cout << (uint32)mTexture << endl;
-		cout << (uint32)mMainCam << endl;
-		cout << (uint32)mSpritePainter << endl;
-		cout << gStage->size() << endl;
 	}
 
 	void QElangTextureWidget::syncCamera() {
