@@ -8,7 +8,7 @@ namespace el {
 
 	struct CellHolder
 	{
-		CellHolder(asset<Cell> cell_, const Box& rect_) : cell(cell_), rect(rect_) {};
+		CellHolder(asset<Cell> cell_, const string& name_, const Box& rect_) : cell(cell_), name(name_), rect(rect_) {};
 
 		void reshapeCell(int aw, int ah) {
 			*cell = Cell(
@@ -20,6 +20,7 @@ namespace el {
 		}
 
 		asset<Cell> cell;
+		string name;
 		Box rect;
 	};
 

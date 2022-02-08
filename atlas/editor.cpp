@@ -111,31 +111,25 @@ namespace el
 				mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
 				mAutoGen->gen = false;
 			}
-			}); autogen->setShortcut(QKeySequence(Qt::Key_F));
+			}); autogen->setShortcut(QKeySequence(Qt::Key_R));
 
 
-		/*
 		mCellToolbar->addSeparator();
 
 
 		auto combine = mCellToolbar->addAction("Combine Cells", [&]() {
-			mCellsWidget->combineCells();
+			//mCellsWidget->combineCells();
 			});
 		combine->setShortcut(QKeySequence(Qt::Key_C));
 
 
 		auto remove = mCellToolbar->addAction("Remove Cells", [&]() {
-			mCellsWidget->deleteSelected();
+			//mCellsWidget->deleteSelected();
 			});
 		remove->setShortcut(QKeySequence(Qt::Key_Delete));
 
-		auto autoc = mCellToolbar->addAction("Auto Cell", [&]() {
-			mCellsWidget->autoCreateCell();
-			});
-		autoc->setShortcut(QKeySequence(Qt::Key_R));
 		mCellToolbar->addSeparator();
-		*/
-
+		
 		mCellsWidget = new CellsWidget(this);
 		mCellsWidget->setMinimumWidth(750);
 		mViewLayout->addWidget(mCellsWidget);
@@ -266,50 +260,6 @@ namespace el
 				}
 			}
 		});
-
-		//connect(ui.actionSet_Texture_As_Link, &QAction::triggered, [&]() {
-		//	cout << "TODO: set debug texture (link or alex)";
-			/*string dir = gAssetDirectory + "spelunky";
-			string key = "spelunky.png";
-			gTexKey = key;
-			gTextures.load(dir + ".png", gTexKey);
-			mCellsWidget->updateTexture(gTexKey);
-			mOriginView->updateTexture();
-			mClipsView->updateTexture();
-
-			string out;
-			loadFile(dir + ".atls", out);
-			mLastSavedPath.fromStdString(dir + ".atls");
-			importAtlas(out);*/
-		//});
-
-
-		//connect(ui.actionSave_As, &QAction::triggered, [&]() {
-		//	stringstream s;
-		//	mAcceptClose = false;
-		//	exportAtlas(s);
-		//	saveBody(s);
-		//	mAcceptClose = true;
-		//	});
-
-		//connect(ui.actionSave, &QAction::triggered, [&]() {
-		//	stringstream s;
-		//	mAcceptClose = false;
-		//	exportAtlas(s);
-		//	saveBody(s, mLastSavedPath.isEmpty());
-		//	mAcceptClose = true;
-		//	});
-
-		//connect(ui.actionLoad, &QAction::triggered, [&]() {
-		//	auto filePath = QFileDialog::getOpenFileName(this, tr("Import Atlas"), gProjectDir.path(), tr("Sprite Atlas (*.atls)"));
-		//	mLastSavedPath = filePath;
-		//	if (!filePath.isEmpty()) {
-		//		string out;
-		//		loadFile(filePath.toStdString(), out);
-		//		importAtlas(out);
-		//	}
-		//	});
-
 
 		connect(mViewActions, &QActionGroup::triggered, [&](QAction* action) {
 			switch (mViewMode) {

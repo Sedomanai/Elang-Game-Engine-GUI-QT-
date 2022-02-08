@@ -15,7 +15,7 @@ namespace el {
 
 		void autoGenCells(uint sortorder, uint margin);
 		//void combineCells();
-		//void showEditor();
+		void showEditor();
 		//void hideEditor();
 
 		//void importAtlasBegin();

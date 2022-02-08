@@ -9,6 +9,7 @@ namespace el
 		mState(CellsWidget::SNONE), QElangPaletteWidget(parent), mSuppressSelect(false), mAlphaCut(10)
 	{
 		ui.view->sig_Start.connect([&]() {
+			connectList();
 			connectMouseInput();
 			});
 
@@ -91,20 +92,16 @@ namespace el
 						gAtlsUtil.cellList->clearSelection();
 						mSelects.clear();
 						mHighlightRect.normalize();
-						{
-							for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-								if (holder->rect.intersects(mHighlightRect)) {
-									mSelects.emplace_back(holder);
-									auto it = gAtlsUtil.cellItems.find(holder->cell);
-									if (it != gAtlsUtil.cellItems.end())
-										it->second->setSelected(true);
-								}
+						for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
+							if (holder->rect.intersects(mHighlightRect)) {
+								mSelects.emplace_back(holder);
+								auto it = gAtlsUtil.cellItems.find(holder);
+								if (it != gAtlsUtil.cellItems.end())
+									it->second->setSelected(true);
 							}
 						}
-
 						mSuppressSelect = false;
 					}
-
 					break;
 				}
 
@@ -183,14 +180,12 @@ namespace el
 				assert(mTexture && mTexture->atlas);
 				auto& cells = mTexture->atlas->cells;
 
-				for (uint i = 0; i < gAtlsUtil.cellList->count(); i++) {
-					auto item = gAtlsUtil.cellList->item(i);
-					if (item->isSelected()) {
-						auto name = item->text().toStdString();
-						if (cells.contains(name))
-							mSelects.emplace_back(cells[name]);
-					}
+				for (auto i = 0; i < gAtlsUtil.cellList->count(); i++) {
+					CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(i));
+					if (item->isSelected())
+						mSelects.emplace_back(item->holder);
 				}
+
 				highlightSelected();
 				ui.view->update();
 				setFocus();
@@ -356,22 +351,6 @@ namespace el
 		ui.view->update();
 	}
 
-	void CellsWidget::highlightSelected() {
-		mSelectRect = aabb(INFINITY, INFINITY, -INFINITY, -INFINITY);
-		for (uint i = 0; i < gCells.count(); i++) {
-			auto& sel = gCells[i];
-			if (sel.item->isSelected()) {
-				sel.color = color(0, 255, 255, 255);
-				mSelectRect.l = min(mSelectRect.l, sel.rect.l);
-				mSelectRect.b = min(mSelectRect.b, sel.rect.b);
-				mSelectRect.r = max(mSelectRect.r, sel.rect.r);
-				mSelectRect.t = max(mSelectRect.t, sel.rect.t);
-			} else sel.color = color(0, 255, 0, 255);
-		}
-		if (mSelectRect.l == INFINITY) {
-			mSelectRect = aabb();
-		}
-	}
 	/**/
 
 	void CellsWidget::onTextureUpdate() {
@@ -380,35 +359,33 @@ namespace el
 	}
 
 	void CellsWidget::recreateList() {
+		bind(mStage);
 		assert(gGUI.open());
 
 		gAtlsUtil.cellList->clear();
 		gAtlsUtil.cellItems.clear();
 		mSelects.clear();
-		if (mTexture && mTexture->atlas) {
+
+		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
 			mSuppressSelect = true;
-			for (auto it : mTexture->atlas->cells) {
-				QListWidgetItem* item = new QListWidgetItem(gAtlsUtil.cellList);
-				item->setText(QString::fromUtf8(it.first));
-				gAtlsUtil.cellList->addItem(item);
-				gAtlsUtil.cellItems.emplace(it.second, item);
-			} mSuppressSelect = false;
+			CellItem* item = new CellItem(gAtlsUtil.cellList);
+			item->holder = holder;
+			item->setText(QString::fromUtf8(holder->name));
+			gAtlsUtil.cellList->addItem(item);
+			gAtlsUtil.cellItems.emplace(holder, item);
+			mSuppressSelect = false;
 		}
 	}
 
-	//void CellsWidget::showEditor() {
-	//	gCellList->setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
-	//	gCellList->setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
-	//	gCellList->setDefaultDropAction(Qt::DropAction::MoveAction);
-	//	gCellList->show();
-	//	show();
-
-	//	mScene.makeCurrent();
-	//	if (gCellList->count() > 0) {
-	//		gCellRow = clamp(gCellRow, 0, gCellList->count() - 1);
-	//	} else gCellRow = -1;
-	//	gCellList->setCurrentRow(gCellRow);
-	//}
+	void CellsWidget::showEditor() {
+		auto list = gAtlsUtil.cellList;
+		list->setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
+		list->setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
+		list->setDefaultDropAction(Qt::DropAction::MoveAction);
+		list->show();
+		show();
+		bind(mStage);
+	}
 
 	//void CellsWidget::hideEditor() {
 	//	if (mSelects.size() > 0)

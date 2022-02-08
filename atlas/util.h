@@ -10,13 +10,19 @@
 
 namespace el
 {
+	struct CellItem : QListWidgetItem
+	{
+		CellItem(QListWidget* parent) : QListWidgetItem(parent) {};
+		obj<CellHolder> holder;
+	};
+
 	struct AtlasUtility
 	{
-		QListExtension *cellList, *clipList;
-		sizet cellRow = -1, clipRow = -1;
 		asset<Material> currentMaterial;
+		// Entity must be obj<CellHolder>
+		hashmap<Entity, CellItem*> cellItems;
+		QListExtension* cellList, * clipList;
 		float resolution = 1.0f;
-		hashmap<Entity, QListWidgetItem*> cellItems, clipItems;
 	};
 
 	inline AtlasUtility gAtlsUtil;

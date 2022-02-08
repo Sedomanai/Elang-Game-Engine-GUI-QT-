@@ -55,7 +55,8 @@ namespace el {
 				rect.b = -cell.uvDown * mTexture->height();
 				rect.t = -cell.uvUp * mTexture->height();
 
-				auto holder = mStage.make<CellHolder>(it.second, rect);
+				assert(cells.contains(it.second));
+				auto holder = mStage.make<CellHolder>(it.second, cells[it.second], rect);
 				holder.add<Button>(this);
 				mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
 			}
