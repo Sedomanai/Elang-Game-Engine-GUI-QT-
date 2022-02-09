@@ -6,31 +6,81 @@
 namespace el
 {
 	CellsWidget::CellsWidget(QWidget* parent) : 
-		mState(CellsWidget::SNONE), QElangPaletteWidget(parent), mSuppressSelect(false), mAlphaCut(10)
+		mState(CellsWidget::SNONE), QElangPaletteWidget(parent), mSuppressSelect(false), mAlphaCut(10), mCtrl(false)
 	{
 		ui.view->sig_Start.connect([&]() {
-			connectList();
 			connectMouseInput();
-			});
+
+			bind(mStage);
+			connectObserver<CellHolder>(mSelects);
+		});
 
 		ui.view->sig_Paint.connect([&]() {
-			bind(mStage);
+			if (gGUI.open()) {
+				bind(mStage);
 
-			for (sizet i = 0; i < mSelects.size(); i++) {
-				mHighlighter->line.batchAABB(mSelects[i]->rect, color8(30, 255, 220, 255), 0.0f);
-				mHighlighter->fill.batchAABB(mSelects[i]->rect, color8(30, 255, 220, 80), 0.0f);
+				color8 c = selectColoring();
+				for (obj<CellHolder> holder : mSelects) {
+					mHighlighter->line.batchAABB(holder->rect, c, 0.0f);
+					c.a = 80;
+					mHighlighter->fill.batchAABB(holder->rect, c, 0.0f);
+				}
+
+				switch (mState) {
+				case SELECTING:
+					if (mCtrl)
+						mHighlighter->line.batchAABB(mSelectRect, color8(255, 0, 0, 255), -10.0f);
+					else 
+						mHighlighter->line.batchAABB(mSelectRect, color8(255, 255, 255, 255), -10.0f);
+					break;
+				}
+				mHighlighter->draw();
 			}
-
-			switch (mState) {
-			case SELECTING:
-				mHighlighter->line.batchAABB(mHighlightRect, color8(255, 255, 255, 255), -10.0f);
-				break;
-			} 
-			
-			
-			mHighlighter->draw();
 		});
-		//connectList();
+
+		connectList();
+	}
+
+	void CellsWidget::onKeyPress(QKeyEvent* e) {
+		if (e->key() == Qt::Key::Key_Alt) {
+			bind(mStage);
+			findCursorState();
+			ui.view->update();
+		}
+		if (e->key() == Qt::Key::Key_Control) {
+			mCtrl = true;
+			findCursorState();
+			ui.view->update();
+		}
+	}
+
+	void CellsWidget::onKeyRelease(QKeyEvent* e) {
+		if (e->key() == Qt::Key::Key_Alt) {
+			bind(mStage);
+			findCursorState();
+			ui.view->update();
+		}
+		if (e->key() == Qt::Key::Key_Control) {
+			mCtrl = false;
+			findCursorState();
+			ui.view->update();
+		}
+	}
+
+
+	color8 CellsWidget::selectColoring() {
+		if (mTempCursor == Qt::ArrowCursor)
+			return color8(30, 255, 220, 255);
+		if (mTempCursor == Qt::OpenHandCursor)
+			return color8(180, 255, 30, 255);
+		else if (mTempCursor == Qt::ClosedHandCursor)
+			return color8(100, 100, 240, 255);
+		else {
+			if (mState == SNONE)
+				return color8(255, 120, 220, 255);
+			else
+				return color8(100, 100, 240, 255);
+		}
 	}
 
 	void CellsWidget::autoGenCells(uint sortorder, uint target_margin) {
@@ -44,10 +94,9 @@ namespace el
 
 	void CellsWidget::connectMouseInput() {
 		ui.view->sig_MousePress.connect([&]() {
-			if (gGUI.open() && gMouse.state(0) == eInput::ONCE) {
+			if (gGUI.open() && mTexture && mTexture->atlas && gMouse.state(0) == eInput::ONCE) {
 				bind(mStage);
-				auto pos = *mMainCam * gMouse.currentPosition();
-				//findCursorState(pos);
+				findCursorState();
 				if (QApplication::keyboardModifiers() & Qt::AltModifier) {
 					if (mCursorState == MOVE)
 						mState = MOVING;
@@ -55,58 +104,15 @@ namespace el
 						mState = SIZING;
 					}
 				} else {
+					auto pos = *mMainCam * gMouse.currentPosition();
 					mState = SELECTING;
-					mHighlightRect.l = pos.x;
-					mHighlightRect.r = pos.x;
-					mHighlightRect.t = pos.y;
-					mHighlightRect.b = pos.y;
+					mSelectRect.l = pos.x;
+					mSelectRect.r = pos.x;
+					mSelectRect.t = pos.y;
+					mSelectRect.b = pos.y;
 				}
 
-				ui.view->update();
-			}
-		});
-		ui.view->sig_MouseRelease.connect([&]() {
-			if (gGUI.open() && gMouse.state(0) == eInput::LIFT) {
-				bind(mStage);
-				switch (mState) {
-				case SIZING:
-				{
-					assert(mSelects.size() > 0);
-					auto sel = mSelects[0];
-					assert(sel);
-					sel->rect = mSelectRect;
-					sel->reshapeCell((int)mTexture->width(), (int)mTexture->height());
-				}
-					break;
-				case MOVING:
-					for (uint i = 0; i < mSelects.size(); i++) {
-						auto sel = mSelects[i];
-						assert(sel);
-						//sel->rect.move() // "how much?
-						sel->reshapeCell((int)mTexture->width(), (int)mTexture->height());
-					}
-					break;
-				case SELECTING:
-					if (mTexture && mTexture->atlas) {
-						mSuppressSelect = true;
-						gAtlsUtil.cellList->clearSelection();
-						mSelects.clear();
-						mHighlightRect.normalize();
-						for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-							if (holder->rect.intersects(mHighlightRect)) {
-								mSelects.emplace_back(holder);
-								auto it = gAtlsUtil.cellItems.find(holder);
-								if (it != gAtlsUtil.cellItems.end())
-									it->second->setSelected(true);
-							}
-						}
-						mSuppressSelect = false;
-					}
-					break;
-				}
-
-				highlightSelected();
-				mState = SNONE;
+				findCursorState();
 				ui.view->update();
 			}
 		});
@@ -114,59 +120,259 @@ namespace el
 		ui.view->sig_MouseMove.connect([&]() {
 			if (gGUI.open()) {
 				bind(mStage);
-				auto pos = *mMainCam * gMouse.currentPosition();
-				//findCursorState(pos);
+				findCursorState();
 
 				if (gMouse.state(0) == eInput::HOLD) {
+					auto pos = *mMainCam * gMouse.currentPosition();
 					auto delta = *mMainCam * gMouse.deltaPosition();
 					delta -= mMainCam->position();
 
 					switch (mState) {
 					case SELECTING:
-						mHighlightRect.r = pos.x;
-						mHighlightRect.t = pos.y;
+						mSelectRect.r = pos.x;
+						mSelectRect.t = pos.y;
 						ui.view->update();
 						break;
 
 					case MOVING:
-						mSelectRect.l += delta.x;
-						mSelectRect.r += delta.x;
-						mSelectRect.t += delta.y;
-						mSelectRect.b += delta.y;
-
-						//for (uint i = 0; i < mSelects.size(); i++) {
-						//	auto& rect = mSelects[i];
-						//	rect->rect.l += delta.x;
-						//	rect->rect.r += delta.x;
-						//	rect->rect.t += delta.y;
-						//	rect->rect.b += delta.y;
-						//}
+						for (obj<CellHolder> holder : mSelects) {
+							holder->rect.move(delta);
+						}
 						ui.view->update();
 						break;
 
 					case SIZING:
-						//if (mSelects.size() == 1) {
-						//	auto& rect = mSelects[0];
-
-						//	if ((mCursorState & LEFT) == LEFT) {
-						//		mSelectRect.l = rect->rect.l = pos.x;
-						//	}
-						//	else if ((mCursorState & RIGHT) == RIGHT) {
-						//		mSelectRect.r = rect->rect.r = pos.x;
-						//	}
-						//	if ((mCursorState & BOTTOM) == BOTTOM) {
-						//		mSelectRect.b = rect->rect.b = pos.y;
-						//	}
-						//	else if ((mCursorState & TOP) == TOP) {
-						//		mSelectRect.t = rect->rect.t = pos.y;
-						//	}
-						//	ui.view->update();
-						//}
+						if (mSelects.size() == 1) {
+							for (obj<CellHolder> holder : mSelects) {
+								if ((mCursorState & LEFT) == LEFT) {
+									holder->rect.l = pos.x;
+								}
+								else if ((mCursorState & RIGHT) == RIGHT) {
+									holder->rect.r = pos.x;
+								}
+								if ((mCursorState & BOTTOM) == BOTTOM) {
+									holder->rect.b = pos.y;
+								}
+								else if ((mCursorState & TOP) == TOP) {
+									holder->rect.t = pos.y;
+								}
+							}
+							ui.view->update();
+						}
 						break;
 					}
 				}
 			}
 		});
+
+		ui.view->sig_MouseRelease.connect([&]() {
+			if (gGUI.open() && gMouse.state(0) == eInput::LIFT) {
+				bind(mStage);
+
+				switch (mState) {
+				case SIZING:
+					if (mSelects.size() == 1) {
+						for (obj<CellHolder> holder : mSelects) {
+							assert(holder);
+							holder->rect.normalize();
+							holder->rect.roundCorners();
+							holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
+							redrawAllCells(false);
+						}
+					}
+					break;
+				case MOVING:
+					assert(mSelects.size() > 0);
+					for (obj<CellHolder> holder : mSelects) {
+						assert(holder);
+						holder->rect.roundCorners();
+						holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
+					} redrawAllCells(false);
+				break;
+				case SELECTING:
+					if (mCtrl) {
+						mSelectRect.normalize();
+						mSelectRect.roundCorners();
+						createNamedCell();
+						redrawAllCells(false);
+					} else {
+						mSuppressSelect = true;
+						gAtlsUtil.cellList->clearSelection();
+						mSelectRect.normalize();
+
+						mSelects.clear();
+						for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
+							if (holder->rect.intersects(mSelectRect)) {
+								holder.update();
+								assert(holder.has<CellItem*>());
+								holder.get<CellItem*>()->setSelected(true);
+							}
+						}
+						mSuppressSelect = false;
+					}
+					break;
+				}
+
+				mState = SNONE;
+				findCursorState();
+				ui.view->update();
+			}
+		});
+	}
+
+	void CellsWidget::deleteSelected() {
+		assert(mTexture && mTexture->atlas);
+		mSuppressSelect = true;
+		for (obj<CellHolder> holder : mSelects) {
+			deleteCell(holder);
+		} 
+		mSelects.clear();
+		mSuppressSelect = false;
+		redrawAllCells(false);
+		ui.view->update();
+	}
+
+	void CellsWidget::deleteCell(obj<CellHolder> holder) {
+		delete holder.get<CellItem*>();
+		mTexture->atlas->cells.erase(holder->cell);
+		holder->cell.destroy();
+		holder.destroy();
+	}
+
+	obj<CellHolder> CellsWidget::createCell(const string& name) {
+		assert(mTexture && mTexture->atlas);
+		mSelectRect.roundCorners();
+		mSelectRect.normalize();
+		CellItem* item = new CellItem(gAtlsUtil.cellList);
+		auto holder = item->holder = mStage.make<CellHolder>(gProject->makeSub<Cell>(), mSelectRect);
+		holder.add<CellItem*>(item);
+		holder.add<Button>(this);
+		holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
+		mTexture->atlas->cells.emplace(name, holder->cell);
+		item->setText(QString::fromUtf8(name));
+
+		mSuppressSelect = true;
+		gAtlsUtil.cellList->addItem(item);
+		gAtlsUtil.cellList->clearSelection();
+		mSelects.clear();
+		item->setSelected(true);
+		gAtlsUtil.cellList->setCurrentItem(item);
+		mSuppressSelect = false;
+
+		holder.update();
+		return holder;
+	}
+
+	void CellsWidget::createNamedCell() {
+		createCell(
+			gAtlsUtil.cellList->getNoneConflictingName(
+				QString::fromStdString(gProject->textures[mTexture]), false
+			).toStdString()
+		);
+	}
+
+	void CellsWidget::autoCreateCell() {
+		static vector<int> valids;
+
+		if (mTexture) {
+			aabb rect;
+			bool made = false;
+
+			vec2 mousepix = (*mMainCam) * gMouse.currentPosition();
+
+			uint pixcount = mTexture->width() * mTexture->height();
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, mTexture->id());
+
+			auto pixels = (unsigned char*)malloc(pixcount);
+			glPixelStorei(GL_PACK_ALIGNMENT, 1);
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_ALPHA, GL_UNSIGNED_BYTE, pixels);
+
+			bool* visited = (bool*)calloc(pixcount, sizeof(bool));
+
+			//TODO: change resolution
+			uint reader = 0, rend = 1;
+			mousepix.x = round(mousepix.x);
+			mousepix.y = round(mousepix.y);
+			mousepix.y *= -1;
+			if (0 < mousepix.x &&
+				0 < mousepix.y &&
+				mousepix.x < mTexture->width() &&
+				mousepix.y < mTexture->height()) {
+				int start = mousepix.x + mousepix.y * mTexture->width();
+				if (pixels[start] > mAlphaCut) {
+					valids.clear();
+					valids.push_back(start);
+					visited[start] = true;
+
+					while (true) {
+						rend = valids.size();
+						for (; reader < rend; reader++) {
+							auto curr = valids[reader];
+							bool notop =
+								((curr < mTexture->width()) || (pixels[curr - mTexture->width()] <= mAlphaCut) || visited[curr - mTexture->width()] == true);
+							bool nobottom =
+								(curr > (mTexture->width() * (mTexture->height() - 1)) || (pixels[curr + mTexture->width()] <= mAlphaCut) || (visited[curr + mTexture->width()] == true));
+							bool noleft =
+								((curr % mTexture->width() == 0) || (pixels[curr - 1] <= mAlphaCut) || (visited[curr - 1] == true));
+							bool noright =
+								((curr % mTexture->width() == (mTexture->width() - 1)) || (pixels[curr + 1] <= mAlphaCut) || (visited[curr + 1] == true));
+							/*bool notopleft =
+								((curr < mTexWidth) || (pixels[curr - mTexWidth] <= 25) || visited[curr - mTexWidth] == true);
+							bool notopright =
+								(curr > (mTexWidth * (mTexHeight - 1)) || (pixels[curr + mTexWidth] <= 25) || (visited[curr + mTexWidth] == true));
+							bool nobottomleft =
+								((curr % mTexWidth == 0) || (pixels[curr - 1] <= 25) || (visited[curr - 1] == true));
+							bool nobottomright =
+								((curr % mTexWidth == (mTexWidth - 1)) || (pixels[curr + 1] <= 25) || (visited[curr + 1] == true));*/
+
+							if (!notop) {
+								valids.push_back(curr - mTexture->width());
+								visited[curr - mTexture->width()] = true;
+							} if (!nobottom) {
+								valids.push_back(curr + mTexture->width());
+								visited[curr + mTexture->width()] = true;
+							} if (!noleft) {
+								valids.push_back(curr - 1);
+								visited[curr - 1] = true;
+							} if (!noright) {
+								valids.push_back(curr + 1);
+								visited[curr + 1] = true;
+							}
+						}
+
+						if (rend == valids.size())
+							break;
+					}
+
+					auto intmax = std::numeric_limits<int>::max();
+					int il = intmax;
+					int ib = intmax;
+					int ir = -intmax;
+					int it = -intmax;
+					for (uint i = 0; i < valids.size(); i++) {
+						auto& s = valids[i];
+						il = min(il, (s % (int)mTexture->width()));
+						ib = min(ib, (s / (int)mTexture->width()));
+						ir = max(ir, (s % (int)mTexture->width()) + 1);
+						it = max(it, (s / (int)mTexture->width()) + 1);
+					}
+
+					rect = aabb(il, -it, ir, -ib);
+					made = true;
+				}
+			}
+			free(pixels);
+
+			if (made) {
+				mSelectRect = Box(rect.l, rect.b, rect.r, rect.t);
+				createNamedCell();
+				redrawAllCells(false);
+				ui.view->update();
+			}
+
+			//recreateList();
+		}
 	}
 
 	void CellsWidget::connectList() {
@@ -177,36 +383,58 @@ namespace el
 			bind(mStage);
 			if (isVisible() && !mSuppressSelect) {
 				mSelects.clear();
-				assert(mTexture && mTexture->atlas);
-				auto& cells = mTexture->atlas->cells;
 
-				for (auto i = 0; i < gAtlsUtil.cellList->count(); i++) {
-					CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(i));
-					if (item->isSelected())
-						mSelects.emplace_back(item->holder);
+				if (mTexture && mTexture->atlas) {
+					auto& cells = mTexture->atlas->cells;
+					for (auto i = 0; i < gAtlsUtil.cellList->count(); i++) {
+						CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(i));
+						if (item->isSelected())
+							item->holder.update();
+					}
 				}
 
-				highlightSelected();
 				ui.view->update();
-				setFocus();
+			}
+		});
+
+		connect(gAtlsUtil.cellList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
+			if (isVisible()) {
+				auto name = gAtlsUtil.cellList->
+					getNoneConflictingName(reinterpret_cast<QLineEdit*>(pLineEdit)->text()).toStdString();
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(gAtlsUtil.cellList->currentRow()));
+				assert(mTexture && mTexture->atlas);
+				mTexture->atlas->cells.erase(item->text().toStdString());
+				mTexture->atlas->cells.emplace(name, item->holder->cell);
+				item->setText(QString::fromStdString(name));
 			}
 		});
 	}
 
-	void CellsWidget::highlightSelected() {
-		mSelectRect = Box(INFINITY, INFINITY, -INFINITY, -INFINITY);
-
-		for (sizet i = 0; i < mSelects.size(); i++) {
-			auto& rect = mSelects[i]->rect;
-			mSelectRect.l = min(mSelectRect.l, rect.l);
-			mSelectRect.b = min(mSelectRect.b, rect.b);
-			mSelectRect.r = max(mSelectRect.r, rect.r);
-			mSelectRect.t = max(mSelectRect.t, rect.t);
-		}
-		if (mSelectRect.l == INFINITY) {
-			mSelectRect = Box();
+	void CellsWidget::combineCells() {
+		if (mSelects.size() > 1) {
+			string name = obj<CellHolder>(mSelects.data()[0]).get<CellItem*>()->text().toStdString();
+			int l = std::numeric_limits<int>::max();
+			int b = std::numeric_limits<int>::max();
+			int r = std::numeric_limits<int>::min();
+			int t = std::numeric_limits<int>::min();
+			mSuppressSelect = true;
+			gAtlsUtil.cellList->clearSelection();
+			for (obj<CellHolder> holder : mSelects) {
+				l = min(l, holder->rect.l);
+				b = min(b, holder->rect.b);
+				r = max(r, holder->rect.r);
+				t = max(t, holder->rect.t);
+				deleteCell(holder);
+			}
+			mSuppressSelect = false;
+			mSelects.clear();
+			mSelectRect = Box(l, b, r, t);
+			createCell(name);
+			redrawAllCells(false);
+			ui.view->update();
 		}
 	}
+
 
 	/*
 
@@ -226,88 +454,7 @@ namespace el
 					}
 				}
 			}
-			});
-
-		connect(gCellList, &QListExtension::itemSelectionChanged, [&]() {
-			if (isVisible() && !mSuppressSelect) {
-				mSelects.clear();
-				for (uint i = 0; i < gCells.count(); i++) {
-					auto& data = gCells[i];
-					if (data.item->isSelected()) {
-						mSelects.push_back(&data);
-					}
-				}
-				highlightSelected();
-				ui.view->update();
-				//setFocus();
-			}
 		});
-
-		connect(gCellList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
-			if (isVisible()) {
-				auto new_name = reinterpret_cast<QLineEdit*>(pLineEdit)->text();
-				for (uint i = 0; i < gCellList->count(); i++) {
-					if (gCellList->currentRow() != i && gCellList->item(i)->text() == new_name) {
-						new_name.push_back('_');
-						i = 0;
-					}
-				}
-
-				gCellList->item(gCellList->currentRow())->setText(new_name);
-				auto& data = gCells[gCellList->currentRow()];
-				data.name = new_name.toStdString();
-				//setFocus();
-			}
-			});
-
-		connect(gCellList->model(), &QAbstractItemModel::rowsMoved, [&](const QModelIndex&, int from, int, const QModelIndex&, int to) {
-			if (isVisible()) {
-				if (from < to)
-					to--;
-				if (uint(to) >= gCellList->count())
-					to = gCellList->count() - 1;
-				if (from < 0)
-					from = 0;
-				gCells.swap(from, to);
-			}
-		});
-	}
-
-	void CellsWidget::combineCells() {
-		if (mSelects.size() > 1) {
-			int l = std::numeric_limits<int>::max();
-			int b = std::numeric_limits<int>::max();
-			int r = std::numeric_limits<int>::min();
-			int t = std::numeric_limits<int>::min();
-			mSuppressSelect = true;
-			for (uint i = 0; i < mSelects.size(); i++) {
-				auto& temp = *mSelects[i];
-				l = min(l, temp.x);
-				b = min(b, temp.y);
-				r = max(r, (temp.x + temp.w));
-				t = max(t, (temp.y + temp.h));
-				if (i == 0) {
-					temp.rect = mSelectRect;
-				} else {
-					delete temp.item;
-					temp.item = nullptr;
-				}
-			} mSelects.erase(mSelects.begin() + 1, mSelects.end());
-			mSelects[0]->setAbsData();
-			mSelects[0]->ox = 0;
-			mSelects[0]->oy = 0;
-
-			for (uint i = 0; i < gCells.count(); i++) {
-				if (gCells[i].item == 0) {
-					gCells.erase(i);
-					i--;
-				}
-			}
-
-			mSelectRect = aabb();
-			mSuppressSelect = false;
-			update();
-		}
 	}
 
 	void CellsWidget::deleteAll() {
@@ -330,31 +477,11 @@ namespace el
 		update();
 	}
 
-	void CellsWidget::deleteSelected() {
-		mSuppressSelect = true;
-		for (uint i = 0; i < mSelects.size(); i++) {
-			delete mSelects[i]->item;
-			mSelects[i]->item = 0;
-		} mSelects.clear();
-
-		for (uint i = 0; i < gCells.count(); i++) {
-			if (gCells[i].item == 0) {
-				gCells.erase(i);
-				i--;
-			}
-		}
-
-		mSelectRect = aabb();
-		mSuppressSelect = false;
-
-		recreateList();
-		ui.view->update();
-	}
-
 	/**/
 
+
 	void CellsWidget::onTextureUpdate() {
-		QElangPaletteWidget::onTextureUpdate();
+		redrawAllCells(true);
 		recreateList();
 	}
 
@@ -363,17 +490,20 @@ namespace el
 		assert(gGUI.open());
 
 		gAtlsUtil.cellList->clear();
-		gAtlsUtil.cellItems.clear();
 		mSelects.clear();
 
-		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-			mSuppressSelect = true;
-			CellItem* item = new CellItem(gAtlsUtil.cellList);
-			item->holder = holder;
-			item->setText(QString::fromUtf8(holder->name));
-			gAtlsUtil.cellList->addItem(item);
-			gAtlsUtil.cellItems.emplace(holder, item);
-			mSuppressSelect = false;
+		if (mTexture && mTexture->atlas) {
+			auto& cells = mTexture->atlas->cells;
+			for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
+				mSuppressSelect = true;
+				CellItem* item = new CellItem(gAtlsUtil.cellList);
+				item->holder = holder;
+				assert(cells.contains(holder->cell));
+				item->setText(QString::fromUtf8(cells[holder->cell]));
+				holder.add<CellItem*>(item);
+				gAtlsUtil.cellList->addItem(item);
+				mSuppressSelect = false;
+			}
 		}
 	}
 
@@ -387,67 +517,86 @@ namespace el
 		bind(mStage);
 	}
 
-	//void CellsWidget::hideEditor() {
-	//	if (mSelects.size() > 0)
-	//		gCellRow = gCellList->row(mSelects[0]->item);
-	//	mSelects.clear();
-	//	
-	//	gCellList->clearSelection();
-	//	gCellList->setCurrentRow(-1);
-	//	gCellList->hide();
-	//	hide();
-	//}
+	void CellsWidget::hideEditor() {
+		mSelects.clear();
+		gAtlsUtil.cellList->clearSelection();
+		gAtlsUtil.cellList->hide();
+		hide();
+	}
 
-	//void CellsWidget::findCursorState(vec2 pos) {
-	//	if (mState == SNONE) {
-	//		mCursorState = CursorState::NONE;
-	//		if (mSelectRect.contains(pos)) {
-	//			auto sx = mViewport->scale().x;
+	void CellsWidget::findCursorState() {
+		assert(gGUI.open() && mTexture);
+		auto pos = *mMainCam * gMouse.currentPosition();
+		if (!mTexture->atlas) {
+			setCursor(Qt::ArrowCursor);
+			mCursorState = CursorState::NONE;
+			return;
+		}
 
-	//			if (mSelectRect.l > pos.x - 5.0f * sx)
-	//				mCursorState += CursorState::LEFT;
-	//			else if (mSelectRect.r < pos.x + 5.0f * sx)
-	//				mCursorState += CursorState::RIGHT;
+		if (mState == SNONE) {
+			mCursorState = CursorState::NONE;
 
-	//			if (mSelectRect.b > pos.y - 5.0f * sx)
-	//				mCursorState += CursorState::BOTTOM;
-	//			else if (mSelectRect.t < pos.y + 5.0f * sx)
-	//				mCursorState += CursorState::TOP;
+			bool hit = false; // = mSelects.size() > 0;
+			for (obj<CellHolder> holder : mSelects) {
+				if (holder->rect.contains(pos)); {
+					hit = true;
+					break;
+				}
+			}
 
-	//			if (mCursorState == 0)
-	//				mCursorState = CursorState::MOVE;
-	//		}
+			if (hit) {
+				auto sx = mMainCam->scale().x;
+				if (mSelects.size() == 1) {
+					auto& rect = obj<CellHolder>(mSelects.data()[0])->rect;
+					if (rect.l > pos.x - 5.0f * sx)
+						mCursorState += CursorState::LEFT;
+					else if (rect.r < pos.x + 5.0f * sx)
+						mCursorState += CursorState::RIGHT;
+					if (rect.b > pos.y - 5.0f * sx)
+						mCursorState += CursorState::BOTTOM;
+					else if (rect.t < pos.y + 5.0f * sx)
+						mCursorState += CursorState::TOP;
+				}
 
-	//		if (QApplication::queryKeyboardModifiers() & Qt::AltModifier) {
-	//			mTempCursor = Qt::ArrowCursor;
-	//			if (mCursorState == CursorState::MOVE)
-	//				mTempCursor = Qt::OpenHandCursor;
+				if (mCursorState == 0)
+					mCursorState = CursorState::MOVE;
+			}
 
-	//			bool left = ((mCursorState & CursorState::LEFT) == CursorState::LEFT);
-	//			bool right = ((mCursorState & CursorState::RIGHT) == CursorState::RIGHT);
-	//			bool top = ((mCursorState & CursorState::TOP) == CursorState::TOP);
-	//			bool bottom = ((mCursorState & CursorState::BOTTOM) == CursorState::BOTTOM);
+			if (QApplication::queryKeyboardModifiers() & Qt::AltModifier) {
+				mTempCursor = Qt::ArrowCursor;
+				if (mCursorState == CursorState::MOVE)
+					mTempCursor = Qt::OpenHandCursor;
 
-	//			if (left || right) {
-	//				mTempCursor = Qt::SizeHorCursor;
-	//			}
-	//			if (top || bottom) {
-	//				if (mTempCursor == Qt::SizeHorCursor) {
-	//					if ((left && top) || (right && bottom)) {
-	//						mTempCursor = Qt::SizeFDiagCursor;
-	//					} else mTempCursor = Qt::SizeBDiagCursor;
-	//				} else
-	//					mTempCursor = Qt::SizeVerCursor;
-	//			}
-	//		} else mTempCursor = Qt::ArrowCursor;
-	//	}	
-	//	
-	//	if (mState == MOVING) {
-	//		mTempCursor = Qt::ClosedHandCursor;
-	//	} 
-	//	
-	//	setCursor(mTempCursor);
-	//}
+				bool left = ((mCursorState & CursorState::LEFT) == CursorState::LEFT);
+				bool right = ((mCursorState & CursorState::RIGHT) == CursorState::RIGHT);
+				bool top = ((mCursorState & CursorState::TOP) == CursorState::TOP);
+				bool bottom = ((mCursorState & CursorState::BOTTOM) == CursorState::BOTTOM);
+
+				if (left || right) {
+					mTempCursor = Qt::SizeHorCursor;
+				}
+				if (top || bottom) {
+					if (mTempCursor == Qt::SizeHorCursor) {
+						if ((left && top) || (right && bottom)) {
+							mTempCursor = Qt::SizeFDiagCursor;
+						} else mTempCursor = Qt::SizeBDiagCursor;
+					} else
+						mTempCursor = Qt::SizeVerCursor;
+				}
+			} else mTempCursor = Qt::ArrowCursor;
+		}	
+		
+		if (mState == MOVING) {
+			mTempCursor = Qt::ClosedHandCursor;
+		} 
+
+		if (mTempCursor == Qt::ArrowCursor && mCtrl) {
+			mTempCursor == Qt::CrossCursor;
+		}
+
+		
+		setCursor(mTempCursor);
+	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 

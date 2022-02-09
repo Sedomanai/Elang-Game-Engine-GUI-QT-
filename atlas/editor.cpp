@@ -34,6 +34,9 @@ namespace el
 
 		mAutoGen = new AtlasAutoGenerator(this);
 		setupInitView();
+
+		gAtlsUtil.cellList->setEnabled(false);
+		gAtlsUtil.clipList->setEnabled(false);
 	}
 
 	void AtlasEditor::setupLayout() {
@@ -63,12 +66,6 @@ namespace el
 		clips.setDefaultDropAction(Qt::DropAction::MoveAction);
 		clips.setEditTriggers(QAbstractItemView::EditTrigger::EditKeyPressed);
 		mListLayout->addWidget(&clips);
-		//test
-		cells.addItem("testCell");
-		cells.addItem("testCell2");
-		clips.addItem("testClip");
-		clips.addItem("testClip2");
-		clips.addItem("testClip3");
 	}
 
 	void AtlasEditor::setupInitView() {
@@ -97,7 +94,7 @@ namespace el
 		mCellToolbar->addWidget(mTextureBox);
 		mCellToolbar->addSeparator();
 
-		auto autogen = mCellToolbar->addAction("Auto Generate", [&]() {
+		auto autogen = mCellToolbar->addAction("Auto Atlas", [&]() {
 			mAutoGen->exec();
 			if (mAutoGen->gen) {
 				mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
@@ -105,26 +102,30 @@ namespace el
 			}
 		}); autogen->setShortcut(QKeySequence(Qt::Key_F));
 
-		auto sort = mCellToolbar->addAction("Sort List", [&]() {
-			mAutoGen->exec();
-			if (mAutoGen->gen) {
-				mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
-				mAutoGen->gen = false;
-			}
-			}); autogen->setShortcut(QKeySequence(Qt::Key_R));
+		//auto sort = mCellToolbar->addAction("Sort List", [&]() {
+		//	mAutoGen->exec();
+		//	if (mAutoGen->gen) {
+		//		mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
+		//		mAutoGen->gen = false;
+		//	}
+		//}); autogen->setShortcut(QKeySequence(Qt::Key_R));
+
+		auto autocell = mCellToolbar->addAction("Auto Cell", [&]() {
+			mCellsWidget->autoCreateCell();
+		}); autocell->setShortcut(QKeySequence(Qt::Key_R));
 
 
 		mCellToolbar->addSeparator();
 
 
 		auto combine = mCellToolbar->addAction("Combine Cells", [&]() {
-			//mCellsWidget->combineCells();
+			mCellsWidget->combineCells();
 			});
 		combine->setShortcut(QKeySequence(Qt::Key_C));
 
 
 		auto remove = mCellToolbar->addAction("Remove Cells", [&]() {
-			//mCellsWidget->deleteSelected();
+			mCellsWidget->deleteSelected();
 			});
 		remove->setShortcut(QKeySequence(Qt::Key_Delete));
 
@@ -214,12 +215,34 @@ namespace el
 
 
 	void AtlasEditor::refresh() {
+		gAtlsUtil.cellList->setEnabled(true);
+		gAtlsUtil.clipList->setEnabled(true);
 		gAtlsUtil.currentMaterial = gProject->make<Material>(gProject->materials, "_EL_AtlasTextureCurrentMaterial");
 		gAtlsUtil.currentMaterial->textures.clear();
 		mTextureBox->clear();
 		for (auto it : gGUI.project.textures) {
 			mTextureBox->addItem(QString::fromStdString(it.first));
 		} 
+	}
+
+	void AtlasEditor::keyPressEvent(QKeyEvent* e) {
+		if (gGUI.open()) {
+			switch (mViewMode) {
+			case ViewMode::CELL:
+				mCellsWidget->onKeyPress(e);
+				break;
+			}
+		}
+	}
+
+	void AtlasEditor::keyReleaseEvent(QKeyEvent* e) {
+		if (gGUI.open()) {
+			switch (mViewMode) {
+			case ViewMode::CELL:
+				mCellsWidget->onKeyRelease(e);
+				break;
+			}
+		}
 	}
 
 	void AtlasEditor::setupActions() {
@@ -231,8 +254,9 @@ namespace el
 
 		connect(ui.actionNewProject, &QAction::triggered, [&]() {
 			gGUI.makeNewProject(this);
-			if (gGUI.open())
+			if (gGUI.open()) {
 				refresh();
+			}
 		});
 		connect(ui.actionSaveProject, &QAction::triggered, [&]() {
 			gGUI.saveCurrentProject();
@@ -243,13 +267,18 @@ namespace el
 		connect(ui.actionLoadProject, &QAction::triggered, [&]() {
 			mCellsWidget->view()->makeCurrent();
 			gGUI.loadCurrentProject(this);
-			if (gGUI.open())
+			if (gGUI.open()) {
 				refresh();
+			}
 		});
 
 		mDebugLoad = new QAction(this);
 		addAction(mDebugLoad);
 		mDebugLoad->setShortcut(QKeySequence(Qt::Key::Key_P));
+
+		auto alt = new QAction(this);
+		addAction(alt);
+		alt->setShortcut(QKeySequence(Qt::Key::Key_Alt));
 
 		connect(mDebugLoad, &QAction::triggered, [&]() {
 			if (gGUI.rc.painters.count() > 0) {

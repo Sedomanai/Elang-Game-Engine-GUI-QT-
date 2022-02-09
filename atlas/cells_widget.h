@@ -13,17 +13,26 @@ namespace el {
 	public:
 		CellsWidget(QWidget* parent = Q_NULLPTR);
 
+		void autoCreateCell();
 		void autoGenCells(uint sortorder, uint margin);
-		//void combineCells();
+		void combineCells();
 		void showEditor();
-		//void hideEditor();
+		void hideEditor();
 
 		//void importAtlasBegin();
 		//void importAtlasEnd();
 		//void autoCreateCell();
-		//void deleteSelected();
+		void deleteSelected();
+
+
+		void onKeyPress(QKeyEvent*);
+		void onKeyRelease(QKeyEvent*);
 
 	private:
+		void deleteCell(obj<CellHolder> cell);
+		obj<CellHolder> createCell(const string& name);
+		void createNamedCell();
+		color8 selectColoring();
 		void onHover(Entity self, Entity context) override {};
 
 		enum CursorState
@@ -40,30 +49,27 @@ namespace el {
 		{
 			SNONE,
 			SELECTING,
+			CREATING,
 			MOVING,
 			SIZING,
 		} mState;
 
 		//vec2 mCellOrigin;
 		QCursor mTempCursor;
+		uint mCursorState;
 
 		uint mAlphaCut;
-		bool mAlt;
-		//bool mListClicked;
+		bool mAlt, mCtrl;
 		bool mSuppressSelect;
-		bool mConnected;
 
-		Box mSelectRect, mHighlightRect;
-		vector<obj<CellHolder>> mSelects;
-
-		uint mCursorState;
+		Observer mSelects;
+		Box mSelectRect;
 
 		void onTextureUpdate() override;
 		void connectMouseInput();
 		void connectList();
 		void recreateList();
-		void findCursorState(vec2 pos);
+		void findCursorState();
 		void deleteAll();
-		void highlightSelected();
 	};
 }

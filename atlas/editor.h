@@ -60,6 +60,9 @@ namespace el
 		// Not used in subwindow mode
 		void refresh();
 
+		void keyPressEvent(QKeyEvent*) override;
+		void keyReleaseEvent(QKeyEvent*) override;
+
 		QVBoxLayout* mViewLayout;
 		QVBoxLayout* mListLayout;
 		QAction* mSetGhost;
@@ -85,5 +88,6 @@ namespace el
 		QAction* mDebugLoad;
 
 		Ui::AtlasEditorUI ui;
+
 	};
 };

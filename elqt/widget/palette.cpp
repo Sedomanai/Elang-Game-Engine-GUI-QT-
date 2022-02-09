@@ -11,10 +11,9 @@ namespace el {
 
 		ui.view->sig_Start.connect([&]() {
 			bind(mStage);
-			//mStage.storage<asset<Cell>>().reserve(300);
-			//mStage.storage<Box>().reserve(300);
-			//mStage.storage<Button>().reserve(300);
-
+			mStage.storage<asset<Cell>>().reserve(300);
+			mStage.storage<Box>().reserve(300);
+			mStage.storage<Button>().reserve(300);
 			mCellShapes = new ShapeDebug;
 			mCellShapes->init(mMainCam);
 
@@ -33,20 +32,29 @@ namespace el {
 	}
 
 	void QElangPaletteWidget::onTextureUpdate() {
+		redrawAllCells(true);
+	}
+
+	void QElangPaletteWidget::redrawAllCells(bool recreate) {
 		assert(gGUI.open());
 		assert(mTexture);
 
 		bind(mStage);
-
-		auto view = gStage->view<Button>();
-		gStage->destroy(view.begin(), view.end());
+		if (recreate) {
+			auto view = mStage.view<Button>();
+			mStage.destroy(view.begin(), view.end());
+		}
 
 		forceUnlockDebuggers();
 		resetMainCamera();
-		if (mTexture->atlas) {
+
+		if (!recreate) {
+			for (obj<CellHolder> holder : mStage.view<CellHolder>()) {
+				mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
+			}
+		} else if (mTexture->atlas) {
 			atlas = mTexture->atlas;
 			auto& cells = atlas->cells;
-			cout << atlas->cells.count() << endl;
 			for (auto it : cells) {
 				auto& cell = *asset<Cell>(it.second);
 				Box rect;
@@ -56,12 +64,12 @@ namespace el {
 				rect.t = -cell.uvUp * mTexture->height();
 
 				assert(cells.contains(it.second));
-				auto holder = mStage.make<CellHolder>(it.second, cells[it.second], rect);
+				auto holder = mStage.make<CellHolder>(it.second, rect);
 				holder.add<Button>(this);
 				mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
 			}
-			mCellShapes->line.flags |= Painter::LOCKED;
 		}
+		mCellShapes->line.flags |= Painter::LOCKED;
 	}
 
 	void QElangPaletteWidget::forceUnlockDebuggers() {

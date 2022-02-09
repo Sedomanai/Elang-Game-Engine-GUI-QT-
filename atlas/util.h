@@ -20,7 +20,7 @@ namespace el
 	{
 		asset<Material> currentMaterial;
 		// Entity must be obj<CellHolder>
-		hashmap<Entity, CellItem*> cellItems;
+		//hashmap<Entity, CellItem*> cellItems;
 		QListExtension* cellList, * clipList;
 		float resolution = 1.0f;
 	};
