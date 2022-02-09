@@ -15,6 +15,7 @@ namespace el {
 
 		void autoCreateCell();
 		void autoGenCells(uint sortorder, uint margin);
+		void sortCells(uint sortorder, uint margin);
 		void combineCells();
 		void showEditor();
 		void hideEditor();

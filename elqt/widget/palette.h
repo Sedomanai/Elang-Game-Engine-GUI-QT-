@@ -42,7 +42,7 @@ namespace el {
 		void forceUnlockDebuggers();
 		void resetMainCamera();
 		void coloring(Box& box);
-		void redrawAllCells(bool recreate);
+		void redrawAllCellHolders(bool recreateFromAtlas);
 
 		void onTextureUpdate() override;
 		void onHover(Entity self, Entity context) override;

@@ -32,15 +32,15 @@ namespace el {
 	}
 
 	void QElangPaletteWidget::onTextureUpdate() {
-		redrawAllCells(true);
+		redrawAllCellHolders(true);
 	}
 
-	void QElangPaletteWidget::redrawAllCells(bool recreate) {
+	void QElangPaletteWidget::redrawAllCellHolders(bool recreateFromAtlas) {
 		assert(gGUI.open());
 		assert(mTexture);
 
 		bind(mStage);
-		if (recreate) {
+		if (recreateFromAtlas) {
 			auto view = mStage.view<Button>();
 			mStage.destroy(view.begin(), view.end());
 		}
@@ -48,13 +48,12 @@ namespace el {
 		forceUnlockDebuggers();
 		resetMainCamera();
 
-		if (!recreate) {
+		if (!recreateFromAtlas) {
 			for (obj<CellHolder> holder : mStage.view<CellHolder>()) {
 				mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
 			}
 		} else if (mTexture->atlas) {
-			atlas = mTexture->atlas;
-			auto& cells = atlas->cells;
+			auto& cells = mTexture->atlas->cells;
 			for (auto it : cells) {
 				auto& cell = *asset<Cell>(it.second);
 				Box rect;
