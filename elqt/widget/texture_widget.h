@@ -39,6 +39,7 @@ namespace el
 		vec2 mScrollStep;
 		float mResolution;
 
+		Box mMainCamBox, mTextureBox;
 		asset<Camera> mMainCam;
 		asset<Painter> mSpritePainter;
 		asset<Texture> mTexture;

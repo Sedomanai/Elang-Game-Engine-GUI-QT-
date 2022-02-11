@@ -19,23 +19,15 @@ namespace el {
 		void combineCells();
 		void showEditor();
 		void hideEditor();
-
+		void deleteSelected();
+		void renameAll();
 		//void importAtlasBegin();
 		//void importAtlasEnd();
-		//void autoCreateCell();
-		void deleteSelected();
-
 
 		void onKeyPress(QKeyEvent*);
 		void onKeyRelease(QKeyEvent*);
 
 	private:
-		void deleteCell(obj<CellHolder> cell);
-		obj<CellHolder> createCell(const string& name);
-		void createNamedCell();
-		color8 selectColoring();
-		void onHover(Entity self, Entity context) override {};
-
 		enum CursorState
 		{
 			NONE = 0,
@@ -55,6 +47,12 @@ namespace el {
 			SIZING,
 		} mState;
 
+		void deleteCell(obj<CellHolder> cell);
+		obj<CellHolder> createCell(const string& name);
+		void createNamedCell();
+		color8 selectColoring();
+		void onHover(Entity self, Entity context) override {};
+
 		//vec2 mCellOrigin;
 		QCursor mTempCursor;
 		uint mCursorState;
@@ -71,6 +69,5 @@ namespace el {
 		void connectList();
 		void recreateList();
 		void findCursorState();
-		void deleteAll();
 	};
 }

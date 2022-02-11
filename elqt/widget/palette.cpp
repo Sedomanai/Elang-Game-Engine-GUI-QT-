@@ -32,41 +32,17 @@ namespace el {
 	}
 
 	void QElangPaletteWidget::onTextureUpdate() {
-		redrawAllCellHolders(true);
+		redrawAllCellHolders();
 	}
 
-	void QElangPaletteWidget::redrawAllCellHolders(bool recreateFromAtlas) {
+	void QElangPaletteWidget::redrawAllCellHolders() {
 		assert(gGUI.open());
 		assert(mTexture);
-
 		bind(mStage);
-		if (recreateFromAtlas) {
-			auto view = mStage.view<Button>();
-			mStage.destroy(view.begin(), view.end());
-		}
-
 		forceUnlockDebuggers();
 		resetMainCamera();
-
-		if (!recreateFromAtlas) {
-			for (obj<CellHolder> holder : mStage.view<CellHolder>()) {
-				mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
-			}
-		} else if (mTexture->atlas) {
-			auto& cells = mTexture->atlas->cells;
-			for (auto it : cells) {
-				auto& cell = *asset<Cell>(it.second);
-				Box rect;
-				rect.l = cell.uvLeft * mTexture->width();
-				rect.r = cell.uvRight * mTexture->width();
-				rect.b = -cell.uvDown * mTexture->height();
-				rect.t = -cell.uvUp * mTexture->height();
-
-				assert(cells.contains(it.second));
-				auto holder = mStage.make<CellHolder>(it.second, rect);
-				holder.add<Button>(this);
-				mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
-			}
+		for (obj<CellHolder> holder : mStage.view<CellHolder>()) {
+			mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
 		}
 		mCellShapes->line.flags |= Painter::LOCKED;
 	}
@@ -94,6 +70,31 @@ namespace el {
 		mHighlighter->line.batchAABB(box, color);
 		color.a = 80;
 		mHighlighter->fill.batchAABB(box, color);
+	}
+
+	void QElangPaletteWidget::recreateCellHoldersFromAtlas() {
+		assert(gGUI.open());
+		assert(mTexture);
+
+		auto view = mStage.view<Button>();
+		mStage.destroy(view.begin(), view.end());
+
+		if (mTexture->atlas) {
+			auto&& cv = mTexture->atlas->linearCells(Atlas::eSortType::INDEX);
+			for (auto i = 0; i < cv.size(); i++) {
+				auto it = cv[i];
+				auto& cell = *asset<Cell>(it);
+
+				Box rect;
+				rect.l = cell.uvLeft * mTexture->width();
+				rect.r = cell.uvRight * mTexture->width();
+				rect.b = -cell.uvDown * mTexture->height();
+				rect.t = -cell.uvUp * mTexture->height();
+
+				auto holder = mStage.make<CellHolder>(it, rect);
+				holder.add<Button>(this);
+			}
+		}
 	}
 
 	void QElangPaletteWidget::onHover(Entity self, Entity context) {

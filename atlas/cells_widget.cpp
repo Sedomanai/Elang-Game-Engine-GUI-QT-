@@ -87,47 +87,52 @@ namespace el
 		bind(mStage);
 		if (gGUI.open() && mTexture) {
 			mTexture->autoGenerateAtlas(mTexture, mAlphaCut);
-			onTextureUpdate();
-			ui.view->update();
+			mTexture->atlas->packAndCacheCells();
 			sortCells(sortorder, target_margin);
+			onTextureUpdate();
+			renameAll();
 		}
 	}
 
+	void CellsWidget::renameAll() {
+		auto& cells = *gAtlsUtil.cellList;
+		mTexture->atlas->cells.clear();
+		auto name = gProject->atlases[mTexture->atlas];
+
+		for (auto i = 0; i < cells.count(); i++) {
+			auto rname = name + "_" + std::to_string(i);
+			CellItem* it = reinterpret_cast<CellItem*>(cells.item(i));
+			it->setText(QString::fromUtf8(rname));
+			mTexture->atlas->cells.emplace(rname, it->holder->cell);
+		}
+	}
+
+	//TODO: create alignment ?
 	void CellsWidget::sortCells(uint sortorder, uint target_margin) {
-		mStage.sort<CellHolder>([&](const CellHolder& l, const CellHolder& r) {
-			auto lhs = l.rect;
-			auto rhs = r.rect;
+		auto&& cv = mTexture->atlas->linearCells();
+
+		std::sort(cv.begin(), cv.end(), [&](asset<Cell> lhs, asset<Cell> rhs) ->bool {
 			bool ret = false;
 			float margin;
+
+			auto lhori = lhs->uvUp;
+			auto rhori = rhs->uvUp;
+			auto lverti = lhs->uvLeft;
+			auto rverti = rhs->uvLeft;
+
 			if (sortorder == 0) {
-				margin = abs(lhs.t - rhs.t);
-				ret = (margin < target_margin) ? (lhs.l < rhs.l) : (lhs.t > rhs.t);
+				margin = abs(lhori - rhori) * mTexture->height();
+				ret = (margin < target_margin) ? (lverti > rverti) : (lhori > rhori);
 			}
 			else {
-				margin = abs(lhs.l - rhs.l);
-				ret = (margin < target_margin) ? (lhs.t < rhs.t) : (lhs.l > rhs.l);
+				margin = abs(lverti - rverti) * mTexture->width();
+				ret = (margin < target_margin) ? (lhori < rhori) : (lverti > rverti);
 			}
 			return ret;
 		});
 
-		recreateList();
-
-		mSuppressSelect = true;
-		for (obj<CellHolder> holder : mStage.view<CellHolder>()) {
-			// 1 faster, component caching success, entity cache failure
-			//gProject->remove<Cell>(holder);
-			//holder.add<Cell>();
-			//holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
-
-			// 2  slower, may cache entities better
-			auto item = holder.get<CellItem*>();
-			mTexture->atlas->cells.erase(holder->cell);
-			holder->cell.destroy();
-			holder->cell = gProject->makeSub<Cell>();
-			mTexture->atlas->cells.emplace(item->text().toStdString(), holder->cell);
-			holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
-		}
-		mSuppressSelect = false;
+		for (sizet i = 0; i < cv.size(); i++)
+			cv[i]->index = i;
 	}
 
 	void CellsWidget::connectMouseInput() {
@@ -214,8 +219,8 @@ namespace el
 							assert(holder);
 							holder->rect.normalize();
 							holder->rect.roundCorners();
-							holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
-							redrawAllCellHolders(false);
+							holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height(), holder->cell->index);
+							redrawAllCellHolders();
 						}
 					}
 					break;
@@ -224,15 +229,15 @@ namespace el
 					for (obj<CellHolder> holder : mSelects) {
 						assert(holder);
 						holder->rect.roundCorners();
-						holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
-					} redrawAllCellHolders(false);
+						holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height(), holder->cell->index);
+					} redrawAllCellHolders();
 				break;
 				case SELECTING:
 					if (mCtrl) {
 						mSelectRect.normalize();
 						mSelectRect.roundCorners();
 						createNamedCell();
-						redrawAllCellHolders(false);
+						redrawAllCellHolders();
 					} else {
 						mSuppressSelect = true;
 						gAtlsUtil.cellList->clearSelection();
@@ -266,7 +271,7 @@ namespace el
 		} 
 		mSelects.clear();
 		mSuppressSelect = false;
-		redrawAllCellHolders(false);
+		redrawAllCellHolders();
 		ui.view->update();
 	}
 
@@ -285,7 +290,7 @@ namespace el
 		auto holder = item->holder = mStage.make<CellHolder>(gProject->makeSub<Cell>(), mSelectRect);
 		holder.add<CellItem*>(item);
 		holder.add<Button>(this);
-		holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height());
+		holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height(), gAtlsUtil.cellList->count());
 		mTexture->atlas->cells.emplace(name, holder->cell);
 		item->setText(QString::fromUtf8(name));
 
@@ -304,7 +309,7 @@ namespace el
 	void CellsWidget::createNamedCell() {
 		createCell(
 			gAtlsUtil.cellList->getNoneConflictingName(
-				QString::fromStdString(gProject->textures[mTexture]), false
+				QString::fromStdString(gProject->atlases[mTexture->atlas]), false
 			).toStdString()
 		);
 	}
@@ -312,7 +317,7 @@ namespace el
 	void CellsWidget::autoCreateCell() {
 		static vector<int> valids;
 
-		if (mTexture) {
+		if (mTexture && mTexture->atlas) {
 			aabb rect;
 			bool made = false;
 
@@ -405,7 +410,7 @@ namespace el
 			if (made) {
 				mSelectRect = Box(rect.l, rect.b, rect.r, rect.t);
 				createNamedCell();
-				redrawAllCellHolders(false);
+				redrawAllCellHolders();
 				ui.view->update();
 			}
 
@@ -449,6 +454,7 @@ namespace el
 	}
 
 	void CellsWidget::combineCells() {
+		assert(mTexture && mTexture->atlas);
 		if (mSelects.size() > 1) {
 			string name = obj<CellHolder>(mSelects.data()[0]).get<CellItem*>()->text().toStdString();
 			int l = std::numeric_limits<int>::max();
@@ -470,10 +476,10 @@ namespace el
 			mSuppressSelect = false;
 			auto first = obj<CellHolder>(mSelects.data()[0]);
 			first->rect = Box(l, b, r, t);
-			first->moldCellFromRect(mTexture->width(), mTexture->height());
+			first->moldCellFromRect(mTexture->width(), mTexture->height(), first->cell->index);
 			mSelects.clear();
 			gAtlsUtil.cellList->setCurrentItem(first.get<CellItem*>());
-			redrawAllCellHolders(false);
+			redrawAllCellHolders();
 			ui.view->update();
 		}
 	}
@@ -524,8 +530,9 @@ namespace el
 
 
 	void CellsWidget::onTextureUpdate() {
-		redrawAllCellHolders(true);
+		recreateCellHoldersFromAtlas();
 		recreateList();
+		redrawAllCellHolders();
 	}
 
 	void CellsWidget::recreateList() {

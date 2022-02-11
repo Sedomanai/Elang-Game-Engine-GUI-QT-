@@ -10,12 +10,12 @@ namespace el {
 	{
 		CellHolder(asset<Cell> cell_, const Box& rect_) : cell(cell_), rect(rect_) {};
 
-		void moldCellFromRect(int aw, int ah) {
+		void moldCellFromRect(int aw, int ah, int index) {
 			*cell = Cell(
 				round(rect.l), round(-rect.t), 
 				round(rect.r - rect.l), round(rect.t - rect.b),
 				(int)cell->oX, (int)cell->oY,
-				aw, ah
+				aw, ah, index
 			); 
 		}
 
@@ -42,7 +42,8 @@ namespace el {
 		void forceUnlockDebuggers();
 		void resetMainCamera();
 		void coloring(Box& box);
-		void redrawAllCellHolders(bool recreateFromAtlas);
+		void recreateCellHoldersFromAtlas();
+		void redrawAllCellHolders();
 
 		void onTextureUpdate() override;
 		void onHover(Entity self, Entity context) override;
