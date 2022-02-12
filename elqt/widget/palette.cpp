@@ -13,16 +13,15 @@ namespace el {
 			gStage->storage<asset<Cell>>().reserve(300);
 			gStage->storage<Box>().reserve(300);
 			gStage->storage<Button>().reserve(300);
-			mCellShapes = new ShapeDebug;
+			mCellShapes = new EditorShapeDebug;
 			mCellShapes->init(mMainCam);
 
-			mHighlighter = new ShapeDebug;
+			mHighlighter = new EditorShapeDebug;
 			mHighlighter->init(mMainCam);
 		});
 
 		ui.view->sig_Paint.connect([&]() {
 			if (gGUI.open()) {
-				cout << "paint" << endl;
 				mCellShapes->draw();
 				mHighlighter->draw();
 				mHighlightBatched = false;
@@ -31,12 +30,13 @@ namespace el {
 	}
 
 	void QElangPaletteWidget::onTextureUpdate() {
+		recreateCellHoldersFromAtlas();
 		redrawAllCellHolders();
 	}
 
 	void QElangPaletteWidget::redrawAllCellHolders() {
 		assert(gGUI.open());
-		//assert(mTexture);
+		assert(mTexture);
 		forceUnlockDebuggers();
 		resetMainCamera();
 		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {

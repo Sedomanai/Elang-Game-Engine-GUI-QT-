@@ -38,7 +38,7 @@ namespace el {
 		single_signal<CellHolder> sig_Clicked;
 	protected:
 		bool mHighlightBatched;
-		ShapeDebug* mCellShapes, * mHighlighter;
+		EditorShapeDebug* mCellShapes, *mHighlighter;
 		void forceUnlockDebuggers();
 		void resetMainCamera();
 		void coloring(Box& box);

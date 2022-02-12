@@ -5,7 +5,8 @@ namespace el
 	void EditorPainter::setCamera() {
 		asset<EditorCamera> cam = camera;
 		if (cam) {
-			setUniformMatrix(mVert->shader(), ((projection == Projection::ePerspective) ? gPerspective : gOrtho) * cam->inversed().matrix(), "uView");
+			setUniformMatrix(mVert->shader(), ((projection == Projection::ePerspective) ? gPerspective : gOrtho), "uView");
+			//setUniformMatrix(mVert->shader(), ((projection == Projection::ePerspective) ? gPerspective : gOrtho) * cam->inversed().matrix(), "uView");
 		} else {
 			setUniformMatrix(mVert->shader(), ((projection == Projection::ePerspective) ? gPerspective : gOrtho), "uView");
 		}
