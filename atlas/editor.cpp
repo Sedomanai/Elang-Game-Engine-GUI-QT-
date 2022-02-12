@@ -4,40 +4,57 @@
 namespace el
 {
 	AtlasEditor::AtlasEditor(QWidget* parent)
-		: QMainWindow(parent), mSuppressSignal(false)
+		: QMainWindow(parent), mSuppressSignal(false), mInitialized(false)
 	{
 		ui.setupUi(this);
 
+		/*ctx = new QOpenGLContext(this);
+		ctx->create();*/
+		//cout << "hmm" << endl;
+
 		if (gGUI.rc.painters.count() == 0) {
 			QElangView::sSig_GlobalGL.connect([&]() {
+				//cout << "ordering" << endl;
 				bind(gGUI.rc);
 				loadElangProject((gGUI.enginePath() + "src/gui.elang").c_str(), true);
 				bind(gGUI.project);
+
 			});
 		}
-		
+
+		//cout << "hmm2" << endl;
+
 		if (gGUI.open()) {
 			ui.actionNewProject->setVisible(false);
 			ui.actionLoadProject->setVisible(false);
 			ui.actionSaveProject->setVisible(false);
 			ui.actionSaveProjectAs->setVisible(false);
+			init();
 			// change mode
 		}
 
-		// DO NOT CHANGE THE ORDER
-		setupLayout(); // do not touch
-		setupList(); // do not touch
-		setupCellMode();
-		setupOriginMode();
-		setupClipMode();
-		setupActions();
-
-		mAutoGen = new AtlasAutoGenerator(this);
-		setupInitView();
-
-		gAtlsUtil.cellList->setEnabled(false);
-		gAtlsUtil.clipList->setEnabled(false);
 	}
+
+
+	void AtlasEditor::init() {
+		if (!mInitialized) {
+			// DO NOT CHANGE THE ORDER
+			setupLayout(); // do not touch
+			setupList(); // do not touch
+			setupCellMode();
+			setupOriginMode();
+			setupClipMode();
+			setupActions();
+			setupInitView();
+
+			gAtlsUtil.currentMaterial = gProject->makeSub<EditorMaterial>();
+			mTextureBox->clear();
+		}
+		for (auto it : gGUI.project.textures) {
+			mTextureBox->addItem(QString::fromStdString(it.first));
+		}
+	}
+
 
 	void AtlasEditor::setupLayout() {
 		QHBoxLayout* layout = new QHBoxLayout();
@@ -69,10 +86,11 @@ namespace el
 	}
 
 	void AtlasEditor::setupInitView() {
+		mAutoGen = new AtlasAutoGenerator(this);
 		mViewMode = ViewMode::CELL;
-		//mCellsWidget->showEditor();
+		mCellsWidget->showEditor();
 		gAtlsUtil.clipList->hide();
-		//mOriginView->hide();
+		mOriginView->hide();
 		mOriginToolbar->hide();
 		//mClipsView->hide();
 		mClipsToolbar->hide();
@@ -87,6 +105,7 @@ namespace el
 			if (gProject->textures.contains(text.toStdString())) {
 				gAtlsUtil.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
 				mCellsWidget->updateMaterial(gAtlsUtil.currentMaterial);
+				mOriginView->updateTexture();
 			}
 		});
 
@@ -133,6 +152,7 @@ namespace el
 		
 		mCellsWidget = new CellsWidget(this);
 		mCellsWidget->setMinimumWidth(750);
+		//ctx->setShareContext(mCellsWidget->view()->context());
 		mViewLayout->addWidget(mCellsWidget);
 
 		addToolBarBreak();
@@ -142,10 +162,10 @@ namespace el
 	void AtlasEditor::setupOriginMode()
 	{
 		mOriginToolbar = new QToolBar(this);
-		/*auto act = mOriginToolbar->addAction("Set Ghost", [&]() {
-			mOriginView->setGhost();
+		auto act = mOriginToolbar->addAction("Set Ghost", [&]() {
+			//mOriginView->setGhost();
 			});
-
+		/*
 		mOriginToolbar->addSeparator();
 		auto left = mOriginToolbar->addAction("Cell Left", [&]() {
 			mOriginView->moveCellOrigin(-1, 0);
@@ -180,22 +200,15 @@ namespace el
 			mOriginView->captureGhost();
 			});
 		ghost->setShortcut(QKeySequence(Qt::Key_C));
-		
+			*/
+
 		mOriginView = new OriginView(this);
 		mOriginView->setMinimumWidth(750);
+		//ctx->setShareContext(mOriginView->context());
 		mViewLayout->addWidget(mOriginView);
-
-		connect(mOriginView, &OriginView::sig_SafeTexture, [&]() {
-			gTextures.load(gProjectDir.path().toStdString() + "/" + gTexKey, gTexKey);
-			mCellsWidget->updateTexture(gTexKey);
-			mOriginView->updateTexture();
-			mClipsView->updateTexture();
-			});
-			*/
 
 		addToolBarBreak();
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mOriginToolbar);
-
 	}
 
 	void AtlasEditor::setupClipMode()
@@ -211,18 +224,6 @@ namespace el
 		//mViewLayout->addWidget(mClipsView);
 
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mClipsToolbar);
-	}
-
-
-	void AtlasEditor::refresh() {
-		gAtlsUtil.cellList->setEnabled(true);
-		gAtlsUtil.clipList->setEnabled(true);
-		gAtlsUtil.currentMaterial = gProject->make<Material>(gProject->materials, "_EL_AtlasTextureCurrentMaterial");
-		gAtlsUtil.currentMaterial->textures.clear();
-		mTextureBox->clear();
-		for (auto it : gGUI.project.textures) {
-			mTextureBox->addItem(QString::fromStdString(it.first));
-		} 
 	}
 
 	void AtlasEditor::keyPressEvent(QKeyEvent* e) {
@@ -255,7 +256,7 @@ namespace el
 		connect(ui.actionNewProject, &QAction::triggered, [&]() {
 			gGUI.makeNewProject(this);
 			if (gGUI.open()) {
-				refresh();
+				init();
 			}
 		});
 		connect(ui.actionSaveProject, &QAction::triggered, [&]() {
@@ -265,10 +266,11 @@ namespace el
 			gGUI.saveCurrentProjectAs(this);
 		});
 		connect(ui.actionLoadProject, &QAction::triggered, [&]() {
-			mCellsWidget->view()->makeCurrent();
+			//mCellsWidget->view()->context()->globalShareContext()->makeCurrent();
+			
 			gGUI.loadCurrentProject(this);
 			if (gGUI.open()) {
-				refresh();
+				init();
 			}
 		});
 
@@ -285,7 +287,7 @@ namespace el
 				mCellsWidget->view()->makeCurrent();
 				gGUI.loadDebugProject();
 				if (gGUI.open()) {
-					refresh();
+					init();
 				}
 			}
 		});
@@ -294,12 +296,12 @@ namespace el
 			switch (mViewMode) {
 			case ViewMode::CELL:
 				mCellToolbar->hide();
-				//mCellsWidget->hideEditor();
+				mCellsWidget->hideEditor();
 				gMouse.reset();
 				break;
 			case ViewMode::ORIGIN:
 				mOriginToolbar->hide();
-				//mOriginView->hideEditor();
+				mOriginView->hideEditor();
 				gMouse.reset();
 				break;
 			case ViewMode::CLIP:
@@ -311,12 +313,12 @@ namespace el
 
 			if (action == ui.actionCellMode) {
 				mViewMode = ViewMode::CELL;
-				//mCellsWidget->showEditor();
+				mCellsWidget->showEditor();
 				mCellToolbar->show();
 			}
 			else if (action == ui.actionOriginMode) {
 				mViewMode = ViewMode::ORIGIN;
-				//mOriginView->showEditor();
+				mOriginView->showEditor();
 				mOriginToolbar->show();
 			}
 			else if (action == ui.actionClipMode) {

@@ -5,30 +5,34 @@ namespace el
 	bool QElangView::sInitialized = false;
 	signal<> QElangView::sSig_GlobalGL;
 
-	QElangView::QElangView(QWidget* parent) : QOpenGLWidget(parent), mInitialized(false) {}
+	QElangView::QElangView(QWidget* parent) : QOpenGLWidget(parent), mInitialized(false) { bind(mStage); }
 
 	void QElangView::initializeGL() {
-		QOpenGLWidget::initializeGL();
-
 		if (!sInitialized) {
-			if (glewInit() == GLEW_OK) {
-				sSig_GlobalGL.invoke();
-				sInitialized = true;
-			} else throw "GLEW could not initialize.";
+			if (glewInit() != GLEW_OK)
+				throw "GLEW could not initialize.";
+			sSig_GlobalGL.invoke();
+			sInitialized = true;
 		}
 
 		if (sInitialized) { // if GLEW successfully initiated
 			if (!mInitialized) {
+				bind(mStage);
+				makeCurrent();
 				onViewStart();
 				mInitialized = true;
 			}
 		}
 	}                
-	void QElangView::paintGL() { if (sInitialized)  { onViewPaint(); }}
-	void QElangView::resizeGL(int w, int h) { mWidth = w; mHeight = h; if (sInitialized) onViewResize(w, h); }
+	void QElangView::paintGL() { if (sInitialized) { bind(mStage); makeCurrent(); onViewPaint(); } }
+	void QElangView::resizeGL(int w, int h) { mWidth = w; mHeight = h; 
+		if (sInitialized) { bind(mStage); makeCurrent(); onViewResize(w, h); } }
 
 
 	void QElangView::mousePressEvent(QMouseEvent* me) {
+		bind(mStage);
+		makeCurrent();
+
 		auto mpos = vec2(me->localPos().x() - mWidth * 0.5f, -me->localPos().y() + mHeight * 0.5f);
 		gMouse.updateKeys(mpos);
 		switch (me->button()) {
@@ -48,6 +52,9 @@ namespace el
 	}
 
 	void QElangView::mouseReleaseEvent(QMouseEvent* me) {
+		bind(mStage);
+		makeCurrent();
+
 		auto mpos = vec2(me->localPos().x() - mWidth * 0.5f, -me->localPos().y() + mHeight * 0.5f);
 		gMouse.updateKeys(mpos);
 		switch (me->button()) {
@@ -67,6 +74,9 @@ namespace el
 	}
 
 	void QElangView::mouseMoveEvent(QMouseEvent* me) {
+		bind(mStage);
+		makeCurrent();
+
 		auto mpos = vec2(me->localPos().x() - mWidth * 0.5f, -me->localPos().y() + mHeight * 0.5f);
 		gMouse.updateKeys(mpos);
 
@@ -75,6 +85,9 @@ namespace el
 	}
 
 	void QElangView::wheelEvent(QWheelEvent* me) {
+		bind(mStage);
+		makeCurrent();
+
 		float temp = me->angleDelta().y() / 120.0f;
 		gMouse.updateWheel(temp);
 
@@ -83,9 +96,22 @@ namespace el
 	}
 
 	void QElangView::keyPressEvent(QKeyEvent* e) {
+		bind(mStage);
+		makeCurrent();
 		onViewKeyPress(e);
 	}
 	void QElangView::keyReleaseEvent(QKeyEvent* e) {
+		bind(mStage);
+		makeCurrent();
 		onViewKeyRelease(e);
+	}
+	bool QElangView::event(QEvent* e) {
+		if (e->type() == QEvent::WindowActivate) {
+			gMouse.reset();
+			gKey.reset();
+			bind(mStage);
+			makeCurrent();
+			onViewActivated();
+		} return QWidget::event(e);
 	}
 }

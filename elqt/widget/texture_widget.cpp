@@ -28,12 +28,24 @@ namespace el
 		ui.view->sig_Start.connect([&]() {
 			connectMouseInput();
 
-			glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
+			//glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			mWinWidth = ui.view->width();
 			mWinHeight = ui.view->height();
+			
+			glClearColor(0.2f, 0.3f, 0.2f, 1.0f);
+
+			mMainCam = gProject->makeSub<EditorCamera>();
+			mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
+			
+			mPainter = gProject->makeSub<EditorPainter>("basic_sprite", "texture_uv", 100000, mMainCam, Projection::eOrtho,
+				Painter::DEPTH_SORT | Painter::MULTI_MATERIAL | Painter::Z_CLEAR);
+			mPainter->init();
+			
+			mTexObj = gStage->make<EditorSprite>(NullEntity, mPainter, "");
+			mTexObj.add<Position>().update();
 		});
 
 		
@@ -43,7 +55,6 @@ namespace el
 			updateViewport(-mWinWidth / 2, mWinWidth / 2, -mWinHeight / 2, mWinHeight / 2);
 
 			if (gGUI.open()) {
-				bind(mStage);
 				syncCamera();
 				syncScrollBars();
 			}
@@ -54,9 +65,8 @@ namespace el
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			if (gGUI.open()) {
-				bind(mStage);
 				mTexObj->batch();
-				mSpritePainter->paint();
+				mPainter->paint();
 			}
 			
 
@@ -103,36 +113,32 @@ namespace el
 	void QElangTextureWidget::connectMouseInput() {
 		ui.view->sig_MousePress.connect([&]() {
 			if (gGUI.open()) {
-				bind(mStage);
 				if (gMouse.state(1) == eInput::ONCE) {
 					setCursor(QCursor(mMoveCursor));
 					mMoveCenter = gMouse.currentPosition();
-				} updateAllButtons(mMainCam);
+				} updateAllEditorButtons(mMainCam);
 			}
 		});
 
 		ui.view->sig_MouseMove.connect([&]() {
 			if (gGUI.open()) {
-				bind(mStage);
 				if (gMouse.state(1) == eInput::HOLD) {
 					mMoveDelta = (gMouse.currentPosition() - mMoveCenter) * mMainCam->scale().x;
-				} updateAllButtons(mMainCam);
+				} updateAllEditorButtons(mMainCam);
 			}
 		});
 
 		ui.view->sig_MouseRelease.connect([&]() {
 			if (gGUI.open()) {
-				bind(mStage);
 				if (gMouse.state(1) == eInput::LIFT) {
 					mMoveDelta = vec2(0, 0);
 					setCursor(QCursor(Qt::CursorShape::ArrowCursor));
-				} updateAllButtons(mMainCam);
+				} updateAllEditorButtons(mMainCam);
 			}
-			});
+		});
 
 		ui.view->sig_ScrollWheel.connect([&]() {
 			if (gGUI.open()) {
-				bind(mStage);
 				float val = (5.0f / 6.0f);
 				val = pow(val, gMouse.wheel());
 				if (val != 0) {
@@ -155,8 +161,8 @@ namespace el
 
 	void QElangTextureWidget::updateTick() {
 		if (gGUI.open()) {
-			bind(mStage);
-			if (isVisible() && (gMouse.state(1) == eInput::HOLD) && mMainCam) {
+			ui.view->bindStage();
+			if (isActiveWindow() && (gMouse.state(1) == eInput::HOLD) && mMainCam) {
 				auto& cam = *mMainCam;
 				cam.move(vec3(mMoveDelta * 0.5, 0));
 
@@ -172,10 +178,9 @@ namespace el
 		}
 	}
 
-	void QElangTextureWidget::updateMaterial(asset<Material> texmat) {
+	void QElangTextureWidget::updateMaterial(asset<EditorMaterial> texmat) {
 		if (gGUI.open()) {
-			view()->makeCurrent();
-			refresh();
+			ui.view->bindStage();
 			if (texmat && texmat->hasTexture()) {
 				mTexture = texmat->textures[0];
 				mTexObj->material = texmat;
@@ -191,28 +196,10 @@ namespace el
 			}
 		}
 	}
-
-	void QElangTextureWidget::refresh() {
-		bind(mStage);
-		glClearColor(0.2f, 0.3f, 0.2f, 1.0f);
-
-		mMainCam = gProject->cameras["Main Camera"];
-		mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
-
-		mSpritePainter = gProject->painters["Sprite Painter"];
-
-		static bool makeOnce = true;
-		if (makeOnce) {
-			mTexObj = gStage->make<Sprite>(asset<Material>(), mSpritePainter, "");
-			mTexObj.add<Position>().update();
-			makeOnce = false;
-		}
-	}
-
+	
 	void QElangTextureWidget::syncCamera() {
 		assert(gGUI.open());
 
-		auto material = mTexObj->material;
 		if (mMainCam && mTexture) {
 			auto& cam = *mMainCam;
 
@@ -250,9 +237,7 @@ namespace el
 	void QElangTextureWidget::syncScrollBars() {
 		assert(gGUI.open());
 
-		auto material = mTexObj->material;
 		if (mMainCam && mTexture) {
-			
 			auto& cam = *mMainCam;
 			float ix = mWinWidth * cam.scale().x;
 			float iy = mWinHeight * cam.scale().y;

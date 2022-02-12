@@ -10,10 +10,9 @@ namespace el {
 		ui.view->setMouseTracking(true);
 
 		ui.view->sig_Start.connect([&]() {
-			bind(mStage);
-			mStage.storage<asset<Cell>>().reserve(300);
-			mStage.storage<Box>().reserve(300);
-			mStage.storage<Button>().reserve(300);
+			gStage->storage<asset<Cell>>().reserve(300);
+			gStage->storage<Box>().reserve(300);
+			gStage->storage<Button>().reserve(300);
 			mCellShapes = new ShapeDebug;
 			mCellShapes->init(mMainCam);
 
@@ -23,7 +22,7 @@ namespace el {
 
 		ui.view->sig_Paint.connect([&]() {
 			if (gGUI.open()) {
-				bind(mStage);
+				cout << "paint" << endl;
 				mCellShapes->draw();
 				mHighlighter->draw();
 				mHighlightBatched = false;
@@ -37,11 +36,10 @@ namespace el {
 
 	void QElangPaletteWidget::redrawAllCellHolders() {
 		assert(gGUI.open());
-		assert(mTexture);
-		bind(mStage);
+		//assert(mTexture);
 		forceUnlockDebuggers();
 		resetMainCamera();
-		for (obj<CellHolder> holder : mStage.view<CellHolder>()) {
+		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
 			mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
 		}
 		mCellShapes->line.flags |= Painter::LOCKED;
@@ -76,8 +74,8 @@ namespace el {
 		assert(gGUI.open());
 		assert(mTexture);
 
-		auto view = mStage.view<Button>();
-		mStage.destroy(view.begin(), view.end());
+		auto view = gStage->view<Button>();
+		gStage->destroy(view.begin(), view.end());
 
 		if (mTexture->atlas) {
 			auto&& cv = mTexture->atlas->linearCells(Atlas::eSortType::INDEX);
@@ -91,14 +89,13 @@ namespace el {
 				rect.b = -cell.uvDown * mTexture->height();
 				rect.t = -cell.uvUp * mTexture->height();
 
-				auto holder = mStage.make<CellHolder>(it, rect);
+				auto holder = gStage->make<CellHolder>(it, rect);
 				holder.add<Button>(this);
 			}
 		}
 	}
 
 	void QElangPaletteWidget::onHover(Entity self, Entity context) {
-		bind(mStage);
 		auto holder = obj<CellHolder>(self);
 		if (holder) {
 			if (!mHighlightBatched) {

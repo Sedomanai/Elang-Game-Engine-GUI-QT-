@@ -13,6 +13,7 @@
 #include "../elang_qt_builder.h"
 #include "../elang_qt_globals.h"
 #include "cells_widget.h"
+#include "origin_widget.h"
 #include "auto_gen.h"
 #include "util.h"
 
@@ -40,6 +41,9 @@ namespace el
 
 	private:
 		bool mSuppressSignal;
+		bool mInitialized;
+
+		void init();
 
 		//Set up all actions and their 
 		void setupActions();
@@ -56,13 +60,10 @@ namespace el
 		//Set up initial view upon opening Atlas Editor
 		void setupInitView();
 
-		// IMPORTANT: refresh atlas upon project initiation and update everything in atlas editor
-		// Not used in subwindow mode
-		void refresh();
-
 		void keyPressEvent(QKeyEvent*) override;
 		void keyReleaseEvent(QKeyEvent*) override;
 
+		QOpenGLContext* ctx;
 		QVBoxLayout* mViewLayout;
 		QVBoxLayout* mListLayout;
 		QAction* mSetGhost;
@@ -70,7 +71,7 @@ namespace el
 		CellsWidget *mCellsWidget;
 
 		QToolBar* mOriginToolbar;
-		//OriginView* mOriginView;
+		OriginView* mOriginView;
 
 		QToolBar* mClipsToolbar;
 		//ClipsView* mClipsView;

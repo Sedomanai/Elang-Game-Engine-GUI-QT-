@@ -9,15 +9,16 @@ namespace el
 		mState(CellsWidget::SNONE), QElangPaletteWidget(parent), mSuppressSelect(false), mAlphaCut(10), mCtrl(false)
 	{
 		ui.view->sig_Start.connect([&]() {
+			ui.view->makeCurrent();
 			connectMouseInput();
 
-			bind(mStage);
 			connectObserver<CellHolder>(mSelects);
+
+			cout << ui.view->context() << endl;
 		});
 
 		ui.view->sig_Paint.connect([&]() {
 			if (gGUI.open()) {
-				bind(mStage);
 
 				color8 c = selectColoring();
 				for (obj<CellHolder> holder : mSelects) {
@@ -43,7 +44,6 @@ namespace el
 
 	void CellsWidget::onKeyPress(QKeyEvent* e) {
 		if (e->key() == Qt::Key::Key_Alt) {
-			bind(mStage);
 			findCursorState();
 			ui.view->update();
 		}
@@ -56,7 +56,6 @@ namespace el
 
 	void CellsWidget::onKeyRelease(QKeyEvent* e) {
 		if (e->key() == Qt::Key::Key_Alt) {
-			bind(mStage);
 			findCursorState();
 			ui.view->update();
 		}
@@ -84,7 +83,6 @@ namespace el
 	}
 
 	void CellsWidget::autoGenCells(uint sortorder, uint target_margin) {
-		bind(mStage);
 		if (gGUI.open() && mTexture) {
 			mTexture->autoGenerateAtlas(mTexture, mAlphaCut);
 			mTexture->atlas->packAndCacheCells();
@@ -138,7 +136,6 @@ namespace el
 	void CellsWidget::connectMouseInput() {
 		ui.view->sig_MousePress.connect([&]() {
 			if (gGUI.open() && mTexture && mTexture->atlas && gMouse.state(0) == eInput::ONCE) {
-				bind(mStage);
 				findCursorState();
 				if (QApplication::keyboardModifiers() & Qt::AltModifier) {
 					if (mCursorState == MOVE)
@@ -162,7 +159,6 @@ namespace el
 
 		ui.view->sig_MouseMove.connect([&]() {
 			if (gGUI.open()) {
-				bind(mStage);
 				findCursorState();
 
 				if (gMouse.state(0) == eInput::HOLD) {
@@ -210,8 +206,6 @@ namespace el
 
 		ui.view->sig_MouseRelease.connect([&]() {
 			if (gGUI.open() && gMouse.state(0) == eInput::LIFT) {
-				bind(mStage);
-
 				switch (mState) {
 				case SIZING:
 					if (mSelects.size() == 1) {
@@ -287,7 +281,7 @@ namespace el
 		mSelectRect.roundCorners();
 		mSelectRect.normalize();
 		CellItem* item = new CellItem(gAtlsUtil.cellList);
-		auto holder = item->holder = mStage.make<CellHolder>(gProject->makeSub<Cell>(), mSelectRect);
+		auto holder = item->holder = gStage->make<CellHolder>(gProject->makeSub<Cell>(), mSelectRect);
 		holder.add<CellItem*>(item);
 		holder.add<Button>(this);
 		holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height(), gAtlsUtil.cellList->count());
@@ -423,7 +417,6 @@ namespace el
 			if (!gGUI.open())
 				return;
 
-			bind(mStage);
 			if (isVisible() && !mSuppressSelect) {
 				mSelects.clear();
 
@@ -536,7 +529,6 @@ namespace el
 	}
 
 	void CellsWidget::recreateList() {
-		bind(mStage);
 		assert(gGUI.open());
 
 		gAtlsUtil.cellList->clear();
@@ -550,7 +542,7 @@ namespace el
 				item->holder = holder;
 				assert(cells.contains(holder->cell));
 				item->setText(QString::fromUtf8(cells[holder->cell]));
-				mStage.emplace_or_replace<CellItem*>(holder, item);
+				gStage->emplace_or_replace<CellItem*>(holder, item);
 				gAtlsUtil.cellList->addItem(item);
 			}
 			mSuppressSelect = false;
@@ -564,7 +556,6 @@ namespace el
 		list->setDefaultDropAction(Qt::DropAction::MoveAction);
 		list->show();
 		show();
-		bind(mStage);
 	}
 
 	void CellsWidget::hideEditor() {

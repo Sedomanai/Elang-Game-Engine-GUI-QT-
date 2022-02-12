@@ -4,12 +4,15 @@
 #include <qevent.h>
 #include <qwidget.h>
 #include <qopenglwidget.h>
+#include <qopenglcontext.h>
 
 #include <tools/registry.h>
 #include <tools/controls.h>
 #include <common/signal.h>
 
+#include "../../elang_qt_assets.h"
 #include "../../elang_qt_builder.h"
+#include "../../elang_qt_globals.h"
 
 namespace el {
 
@@ -24,6 +27,7 @@ namespace el {
 		QElangView(QWidget* parent = Q_NULLPTR);
 
 		static signal<> sSig_GlobalGL;
+		void bindStage() { bind(mStage); }
 	protected:
 		virtual void onViewStart() = 0;
 		virtual void onViewPaint() = 0;
@@ -34,6 +38,7 @@ namespace el {
 		virtual void onViewMouseMove() {};
 		virtual void onViewKeyPress(QKeyEvent*) {};
 		virtual void onViewKeyRelease(QKeyEvent*) {};
+		virtual void onViewActivated() {};
 
 		void initializeGL() override;
 		void paintGL() override;
@@ -44,10 +49,12 @@ namespace el {
 		void wheelEvent(QWheelEvent*) override;
 		void keyPressEvent(QKeyEvent*) override;
 		void keyReleaseEvent(QKeyEvent*) override;
+		bool event(QEvent* e) override;
 
 		static bool sInitialized;
 		bool mInitialized;
 		float mWidth, mHeight;
+		Stage mStage;
 	};
 
 	/// <summary>

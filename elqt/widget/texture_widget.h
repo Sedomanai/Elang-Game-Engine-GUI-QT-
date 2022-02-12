@@ -7,7 +7,6 @@
 
 #include "../extension/view.h"
 #include "../../elang_qt_globals.h"
-#include "../../elang_qt_builder.h"
 
 namespace el
 {
@@ -19,18 +18,15 @@ namespace el
 		QElangTextureWidget(QWidget* parent = Q_NULLPTR);
 
 		void updateTick();
-		void updateMaterial(asset<Material>);
+		void updateMaterial(asset<EditorMaterial>);
 		QElangViewSignaled* view();
 
 
 	protected:
 		Ui::QElangTextureWidgetUI ui;
 		virtual void onTextureUpdate() {};
-		void refresh();
 
 		Qt::CursorShape mMoveCursor;
-
-		Stage mStage;
 		int mWinWidth, mWinHeight;
 
 		aabb mCamBounds;
@@ -40,11 +36,10 @@ namespace el
 		float mResolution;
 
 		Box mMainCamBox, mTextureBox;
-		asset<Camera> mMainCam;
-		asset<Painter> mSpritePainter;
 		asset<Texture> mTexture;
-
-		obj<Sprite> mTexObj;
+		asset<EditorCamera> mMainCam;
+		asset<EditorPainter> mPainter;
+		obj<EditorSprite> mTexObj;
 
 		bool mSuppressScroll;
 		bool mMovingScreen;
