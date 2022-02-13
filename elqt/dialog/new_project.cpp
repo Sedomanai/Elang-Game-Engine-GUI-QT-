@@ -50,14 +50,14 @@ namespace el {
 			project.datDir = ui.datDir->text().toStdString();
 			project.internalBinary = ui.internalBinary->isChecked();
 
-			auto cam = gProject->make<Camera>(gProject->cameras, "Main Camera");
-			cam->to(vec3(0, 0, -1000));
-			gProject->make<Painter>(gProject->painters, "Sprite Painter",
-				"basic_sprite", "texture_uv", 100000, cam, Projection::eOrtho,
-				Painter::DEPTH_SORT | Painter::MULTI_MATERIAL | Painter::Z_READ_ONLY);
-			gProject->make<Painter>(gProject->painters, "UI Painter",
-				"basic_sprite", "texture_uv", 100000, NullEntity, Projection::eOrtho,
-				Painter::DEPTH_SORT | Painter::MULTI_MATERIAL | Painter::Z_CLEAR);
+			//auto cam = gProject->make<Camera>(gProject->cameras, "Main Camera");
+			//cam->to(vec3(0, 0, -1000));
+			//gProject->make<Painter>(gProject->painters, "Sprite Painter",
+			//	"basic_sprite", "texture_uv", 100000, cam, Projection::eOrtho,
+			//	ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_READ_ONLY);
+			//gProject->make<Painter>(gProject->painters, "UI Painter",
+			//	"basic_sprite", "texture_uv", 100000, NullEntity, Projection::eOrtho,
+			//	ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
 
 			QString path = ui.projDir->text() + tr("/") + ui.projectName->text() + tr(".elang");
 			return path;

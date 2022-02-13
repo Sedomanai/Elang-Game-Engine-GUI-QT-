@@ -2,13 +2,15 @@
 #include <qbuttongroup.h>
 #include <qfiledialog.h>
 
-namespace il {
-	GhostDialog::GhostDialog(QWidget *parent)
-		: QDialog(parent), mConfirmed(false), type(eAtlasGhostType::NONE), order(eAtlasGhostOrder::BACK), cell(-1)
+namespace el {
+
+	ElangAtlasGhostDialog::ElangAtlasGhostDialog(QWidget *parent)
+		: QDialog(parent)
 	{
 		ui.setupUi(this);
 		ui.posBox->setDisabled(true);
 		ui.customBox->setDisabled(true);
+
 		connect(ui.typeGroup, qOverload<QAbstractButton*, bool>(&QButtonGroup::buttonToggled), [&](QAbstractButton* button, bool) {
 			ui.posBox->setDisabled(button == ui.noneRadio);
 			ui.customBox->setDisabled((button == ui.noneRadio || button == ui.prevRadio));
@@ -18,102 +20,118 @@ namespace il {
 		});
 
 		connect(ui.noneRadio, &QRadioButton::toggled, [&]() {
-			type = eAtlasGhostType::NONE;
-			});
+			mData.type = ElangAtlasGhostData::eType::NONE;
+			mData.material = NullEntity;
+		});
 
 		connect(ui.prevRadio, &QRadioButton::toggled, [&]() {
-			type = eAtlasGhostType::PREVIOUS;
-			});
+			mData.type = ElangAtlasGhostData::eType::PREVIOUS;
+			mData.material = gAtlsUtil.currentMaterial;
+		});
 
 		connect(ui.customRadio, &QRadioButton::toggled, [&]() {
-			type = eAtlasGhostType::CUSTOM;
-			});
+			mData.type = ElangAtlasGhostData::eType::CUSTOM;
+			mData.material = gAtlsUtil.currentMaterial;
+		});
 
 		connect(ui.externRadio, &QRadioButton::toggled, [&]() {
-			type = eAtlasGhostType::EXTERNAL;
+			mData.type = ElangAtlasGhostData::eType::EXTERNAL;
 			});
 
 		connect(ui.frontRadio, &QRadioButton::toggled, [&]() {
-			order = eAtlasGhostOrder::FRONT;
+			mData.order = ElangAtlasGhostData::eOrder::FRONT;
 			});
 
 		connect(ui.backRadio, &QRadioButton::toggled, [&]() {
-			order = eAtlasGhostOrder::BACK;
-			});
-
-		connect(ui.textureButton, &QPushButton::clicked, [&]() {
-			auto filePath = QFileDialog::getOpenFileName(this, tr("External Texture"), gAssetsDir.path(), tr("PNG (*.png)"));
-			mExternTexKey = gAssetsDir.relativeFilePath(filePath).toStdString();
-			gTextures.load(filePath.toStdString(), mExternTexKey);
-			ui.textureEdit->setText(QString::fromStdString(mExternTexKey));
-		});
-		connect(ui.atlasButton, &QPushButton::clicked, [&]() {
-			auto filePath = QFileDialog::getOpenFileName(this, tr("External Atlas"), gAssetsDir.path(), tr("ATLAS (*.atls)"));
-			mExternAtlasKey = gAssetsDir.relativeFilePath(filePath).toStdString();
-			ui.atlasEdit->setText(QString::fromStdString(mExternAtlasKey));
-			mExternAtlasKey = filePath.toStdString();
+			mData.order = ElangAtlasGhostData::eOrder::BACK;
 		});
 
-		connect(ui.paletteButton, &QPushButton::clicked, [&]() {
-			switch (type) {
-			case eAtlasGhostType::CUSTOM:
-				
-				gPalette->open(gTexKey, &gCells);
-				cell = gPalette->selectedCellIndex;
-				if (cell != -1)
-					ui.paletteEdit->setText(QString::fromStdString(gCells.nameAt(cell)));
-				else ui.paletteEdit->setText("");
-				break;
-
-			case eAtlasGhostType::EXTERNAL:
-				mExternCells.clear();
-
-				string data;
-				loadFile(mExternAtlasKey, data);
-				loadAtlasToCells(data, &mExternCells);
-				gPalette->open(mExternTexKey, &mExternCells);
-				cell = gPalette->selectedCellIndex;
-
-				if (cell != -1)
-					ui.paletteEdit->setText(QString::fromStdString(mExternCells.nameAt(cell)));
-				else ui.paletteEdit->setText("");
-				break;
+		connect(ui.texture, &QComboBox::currentTextChanged, [&](const QString& text) {
+			if (gProject->textures.contains(text.toStdString())) {
+				assert(mData.material);
+				mData.material->setTexture(gProject->textures[text.toStdString()]);
 			}
 		});
+		connect(ui.cellButton, &QPushButton::clicked, [&]() {
+			QElangPaletteWidget widget;
+			QDialog dialog;
+			
+			//switch (mData.type) {
+			//case ElangAtlasGhostData::eType::CUSTOM:
+			//	
+
+			//}
+
+			//auto filePath = QFileDialog::getOpenFileName(this, tr("External Atlas"), gAssetsDir.path(), tr("ATLAS (*.atls)"));
+			//mExternAtlasKey = gAssetsDir.relativeFilePath(filePath).toStdString();
+			//ui.atlasEdit->setText(QString::fromStdString(mExternAtlasKey));
+			//mExternAtlasKey = filePath.toStdString();
+		});
+
+		//connect(ui.paletteButton, &QPushButton::clicked, [&]() {
+		//	switch (type) {
+		//	case ElangAtlasGhostData::eType::CUSTOM:
+		//		/*
+		//		gPalette->open(gTexKey, &gCells);
+		//		cell = gPalette->selectedCellIndex;
+		//		if (cell != -1)
+		//			ui.paletteEdit->setText(QString::fromStdString(gCells.nameAt(cell)));
+		//		else ui.paletteEdit->setText("");*/
+		//		break;
+
+		//	case ElangAtlasGhostData::eType::EXTERNAL:
+		//		//mExternCells.clear();
+
+		//		//string data;
+		//		//loadFile(mExternAtlasKey, data);
+		//		//loadAtlasToCells(data, &mExternCells);
+		//		//gPalette->open(mExternTexKey, &mExternCells);
+		//		//cell = gPalette->selectedCellIndex;
+
+		//		//if (cell != -1)
+		//		//	ui.paletteEdit->setText(QString::fromStdString(mExternCells.nameAt(cell)));
+		//		//else ui.paletteEdit->setText("");
+		//		break;
+		//	}
+		//});
 
 		connect(ui.confirmButton, &QPushButton::clicked, [&]() {
 			mConfirmed = true;
 			close();
 		});
+		connect(ui.cancelButton, &QPushButton::clicked, [&]() {
+			mConfirmed = false;
+			close();
+		});
 	}
 
-	GhostDialog::~GhostDialog()
-	{
-
-	}
-
-	void GhostDialog::open() {
+	void ElangAtlasGhostDialog::open() {
 		mConfirmed = false;
 		exec();	
 	}
 
-	void GhostDialog::alignCustomByHotkey(uint cell_) {
-		if (cell_ != -1) {
-			cell = cell_;
-			ui.customRadio->toggle();
-			ui.paletteEdit->setText(QString::fromStdString(gCells.nameAt(cell_)));
+	//void ElangAtlasGhostDialog::alignCustomByHotkey(uint cell_) {
+	//	if (cell_ != -1) {
+	//		cell = cell_;
+	//		ui.customRadio->toggle();
+	//		ui.paletteEdit->setText(QString::fromStdString(gCells.nameAt(cell_)));
+	//	}
+	//}
+
+	void ElangAtlasGhostDialog::customize(bool value) {
+		ui.texLabel->setEnabled(value);
+		ui.texture->setEnabled(value);
+		ui.cellButton->setEnabled(true);
+		ui.cellLabel->setEnabled(true);
+
+		if (!value) {
+			ui.cellLabel->setText("");
+			//ui.texture->setText("");
 		}
 	}
 
-	void GhostDialog::customize(bool value) {
-		ui.atlasButton->setEnabled(value);
-		ui.atlasEdit->setEnabled(value);
-		ui.textureButton->setEnabled(value);
-		ui.textureEdit->setEnabled(value);
+	ElangAtlasGhostDialog::~ElangAtlasGhostDialog()
+	{
 
-		if (!value) {
-			ui.atlasEdit->setText("");
-			ui.textureEdit->setText("");
-		}
 	}
 }

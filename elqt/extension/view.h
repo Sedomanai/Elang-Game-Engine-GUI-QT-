@@ -6,11 +6,11 @@
 #include <qopenglwidget.h>
 #include <qopenglcontext.h>
 
+#include <elang_gui_assets.h>
 #include <tools/registry.h>
 #include <tools/controls.h>
 #include <common/signal.h>
 
-#include "../../elang_qt_assets.h"
 #include "../../elang_qt_builder.h"
 #include "../../elang_qt_globals.h"
 
@@ -28,9 +28,10 @@ namespace el {
 
 		static signal<> sSig_GlobalGL;
 		void bindStage() { bind(mStage); }
+		void setStage(Stage* stage) { mStage = stage; }
 	protected:
-		virtual void onViewStart() = 0;
-		virtual void onViewPaint() = 0;
+		virtual void onViewStart() {};
+		virtual void onViewPaint() {};
 		virtual void onViewResize(int w, int h) {};
 		virtual void onViewScrollWheel() {};
 		virtual void onViewMousePress() {};
@@ -54,7 +55,7 @@ namespace el {
 		static bool sInitialized;
 		bool mInitialized;
 		float mWidth, mHeight;
-		Stage mStage;
+		Stage* mStage;
 	};
 
 	/// <summary>

@@ -1,6 +1,6 @@
 #pragma once
 #include "elang_qt_globals.h"
-
+#include "elqt/extension/view.h"
 
 namespace el
 {
@@ -17,22 +17,25 @@ namespace el
 			initElang();
 		}
 	}
+
 	void ElangGUI::loadCurrentProject(QWidget* parent) {
 		mProjectPath = QFileDialog::getOpenFileName(
 			parent, "Open Project", "D:/Programming/_Elang", "Elang Project (*.elang)"
 		).toStdString();
+		loadAllAssets();
+	}
+
+	void ElangGUI::loadDebugProject() {
+		mProjectPath = "D:/Programming/_Elang/test/project.elang";
+		loadAllAssets();
+	}
+
+	void ElangGUI::loadAllAssets() {
 		if (!mProjectPath.empty()) {
 			bind(project);
 			mProjectOpen = true;
 			loadElangProject(mProjectPath.c_str(), true);
 		}
-	}
-
-	void ElangGUI::loadDebugProject() {
-		mProjectPath = "D:/Programming/_Elang/test/project.elang";
-		bind(project);
-		mProjectOpen = true;
-		loadElangProject(mProjectPath.c_str(), true);
 	}
 
 	void ElangGUI::saveCurrentProject() {
@@ -51,6 +54,16 @@ namespace el
 
 	void ElangGUI::declareGlobalShareContext() {
 		QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+	}
+	void ElangGUI::initializeGlobalOpenGL(QWidget* widget) {
+		bind(project);
+		if (!mSignature) {
+			mSignature = new QElangView(widget);
+			el::QElangView::sSig_GlobalGL.connect([&]() { // make global here
+				cout << "Global OpenGL Initialized.." << endl;
+				mSignature->close();
+			});
+		} 
 	}
 }
 

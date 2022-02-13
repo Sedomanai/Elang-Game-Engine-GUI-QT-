@@ -65,6 +65,8 @@ namespace el {
 		Box mSelectRect;
 
 		void onTextureUpdate() override;
+
+		void safeClearSelection();
 		void connectMouseInput();
 		void connectList();
 		void recreateList();

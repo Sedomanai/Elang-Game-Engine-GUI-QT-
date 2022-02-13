@@ -8,21 +8,7 @@ namespace el
 	{
 		ui.setupUi(this);
 
-		/*ctx = new QOpenGLContext(this);
-		ctx->create();*/
-		//cout << "hmm" << endl;
-
-		if (gGUI.rc.painters.count() == 0) {
-			QElangView::sSig_GlobalGL.connect([&]() {
-				//cout << "ordering" << endl;
-				bind(gGUI.rc);
-				loadElangProject((gGUI.enginePath() + "src/gui.elang").c_str(), true);
-				bind(gGUI.project);
-
-			});
-		}
-
-		//cout << "hmm2" << endl;
+		setupActions();
 
 		if (gGUI.open()) {
 			ui.actionNewProject->setVisible(false);
@@ -32,30 +18,35 @@ namespace el
 			init();
 			// change mode
 		}
-
 	}
 
 
-	void AtlasEditor::init() {
+	void AtlasEditor::init(bool debug) {
 		if (!mInitialized) {
+			mInitialized = true;
 			// DO NOT CHANGE THE ORDER
 			setupLayout(); // do not touch
 			setupList(); // do not touch
 			setupCellMode();
 			setupOriginMode();
 			setupClipMode();
-			setupActions();
 			setupInitView();
 
-			gAtlsUtil.currentMaterial = gProject->makeSub<EditorMaterial>();
-			mTextureBox->clear();
+			bind(&mStage);
+			mViewActions->setEnabled(true);
+			gAtlsUtil.currentMaterial = gProject->makeSub<EditorProjectMaterial>(); // delete this material later
 		}
+
+		mTextureBox->clear();
 		for (auto it : gGUI.project.textures) {
 			mTextureBox->addItem(QString::fromStdString(it.first));
 		}
+
+		if (debug) {
+			mTextureBox->setCurrentIndex(1);
+			ui.actionOriginMode->trigger();
+		}
 	}
-
-
 	void AtlasEditor::setupLayout() {
 		QHBoxLayout* layout = new QHBoxLayout();
 		layout->setContentsMargins(QMargins(0, 0, 0, 0));
@@ -87,6 +78,7 @@ namespace el
 
 	void AtlasEditor::setupInitView() {
 		mAutoGen = new AtlasAutoGenerator(this);
+		mGhostDialog = new ElangAtlasGhostDialog(this);
 		mViewMode = ViewMode::CELL;
 		mCellsWidget->showEditor();
 		gAtlsUtil.clipList->hide();
@@ -103,6 +95,7 @@ namespace el
 		mTextureBox->setMinimumWidth(100);
 		connect(mTextureBox, &QComboBox::currentTextChanged, [&](const QString& text) {
 			if (gProject->textures.contains(text.toStdString())) {
+				assert(gAtlsUtil.currentMaterial);
 				gAtlsUtil.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
 				mCellsWidget->updateMaterial(gAtlsUtil.currentMaterial);
 				mOriginView->updateTexture();
@@ -133,15 +126,12 @@ namespace el
 			mCellsWidget->autoCreateCell();
 		}); autocell->setShortcut(QKeySequence(Qt::Key_R));
 
-
 		mCellToolbar->addSeparator();
-
 
 		auto combine = mCellToolbar->addAction("Combine Cells", [&]() {
 			mCellsWidget->combineCells();
 			});
 		combine->setShortcut(QKeySequence(Qt::Key_C));
-
 
 		auto remove = mCellToolbar->addAction("Remove Cells", [&]() {
 			mCellsWidget->deleteSelected();
@@ -152,7 +142,7 @@ namespace el
 		
 		mCellsWidget = new CellsWidget(this);
 		mCellsWidget->setMinimumWidth(750);
-		//ctx->setShareContext(mCellsWidget->view()->context());
+		mCellsWidget->view()->setStage(&mStage);
 		mViewLayout->addWidget(mCellsWidget);
 
 		addToolBarBreak();
@@ -163,9 +153,12 @@ namespace el
 	{
 		mOriginToolbar = new QToolBar(this);
 		auto act = mOriginToolbar->addAction("Set Ghost", [&]() {
-			//mOriginView->setGhost();
-			});
-		/*
+			mGhostDialog->exec();
+			if (mGhostDialog->confirmed()) {
+				mOriginView->setGhost(mGhostDialog->data());
+			}
+		});
+		
 		mOriginToolbar->addSeparator();
 		auto left = mOriginToolbar->addAction("Cell Left", [&]() {
 			mOriginView->moveCellOrigin(-1, 0);
@@ -200,11 +193,11 @@ namespace el
 			mOriginView->captureGhost();
 			});
 		ghost->setShortcut(QKeySequence(Qt::Key_C));
-			*/
+			
 
 		mOriginView = new OriginView(this);
 		mOriginView->setMinimumWidth(750);
-		//ctx->setShareContext(mOriginView->context());
+		mOriginView->setStage(&mStage);
 		mViewLayout->addWidget(mOriginView);
 
 		addToolBarBreak();
@@ -226,71 +219,39 @@ namespace el
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mClipsToolbar);
 	}
 
-	void AtlasEditor::keyPressEvent(QKeyEvent* e) {
-		if (gGUI.open()) {
-			switch (mViewMode) {
-			case ViewMode::CELL:
-				mCellsWidget->onKeyPress(e);
-				break;
-			}
-		}
-	}
-
-	void AtlasEditor::keyReleaseEvent(QKeyEvent* e) {
-		if (gGUI.open()) {
-			switch (mViewMode) {
-			case ViewMode::CELL:
-				mCellsWidget->onKeyRelease(e);
-				break;
-			}
-		}
-	}
-
 	void AtlasEditor::setupActions() {
-		mViewActions = new QActionGroup(this);
-		mViewActions->addAction(ui.actionCellMode);
-		mViewActions->addAction(ui.actionOriginMode);
-		mViewActions->addAction(ui.actionClipMode);
-		mViewActions->setExclusionPolicy(QActionGroup::ExclusionPolicy::Exclusive);
-
 		connect(ui.actionNewProject, &QAction::triggered, [&]() {
 			gGUI.makeNewProject(this);
-			if (gGUI.open()) {
-				init();
-			}
+			assert(gGUI.open());
+			init();
 		});
 		connect(ui.actionSaveProject, &QAction::triggered, [&]() {
 			gGUI.saveCurrentProject();
-		});
+			});
 		connect(ui.actionSaveProjectAs, &QAction::triggered, [&]() {
 			gGUI.saveCurrentProjectAs(this);
 		});
 		connect(ui.actionLoadProject, &QAction::triggered, [&]() {
-			//mCellsWidget->view()->context()->globalShareContext()->makeCurrent();
-			
 			gGUI.loadCurrentProject(this);
-			if (gGUI.open()) {
-				init();
-			}
+			assert(gGUI.open());
+			init();
 		});
 
 		mDebugLoad = new QAction(this);
 		addAction(mDebugLoad);
 		mDebugLoad->setShortcut(QKeySequence(Qt::Key::Key_P));
 
-		auto alt = new QAction(this);
-		addAction(alt);
-		alt->setShortcut(QKeySequence(Qt::Key::Key_Alt));
-
 		connect(mDebugLoad, &QAction::triggered, [&]() {
-			if (gGUI.rc.painters.count() > 0) {
-				mCellsWidget->view()->makeCurrent();
-				gGUI.loadDebugProject();
-				if (gGUI.open()) {
-					init();
-				}
-			}
+			gGUI.loadDebugProject();
+			assert(gGUI.open());
+			init(true);
 		});
+
+		mViewActions = new QActionGroup(this);
+		mViewActions->addAction(ui.actionCellMode);
+		mViewActions->addAction(ui.actionOriginMode);
+		mViewActions->addAction(ui.actionClipMode);
+		mViewActions->setExclusionPolicy(QActionGroup::ExclusionPolicy::Exclusive);
 
 		connect(mViewActions, &QActionGroup::triggered, [&](QAction* action) {
 			switch (mViewMode) {
@@ -326,7 +287,29 @@ namespace el
 				//mClipsView->showEditor();
 				mClipsToolbar->show();
 			}
-		});
+			});
+
+		mViewActions->setEnabled(false);
+	}
+
+	void AtlasEditor::keyPressEvent(QKeyEvent* e) {
+		if (gGUI.open()) {
+			switch (mViewMode) {
+			case ViewMode::CELL:
+				mCellsWidget->onKeyPress(e);
+				break;
+			}
+		}
+	}
+
+	void AtlasEditor::keyReleaseEvent(QKeyEvent* e) {
+		if (gGUI.open()) {
+			switch (mViewMode) {
+			case ViewMode::CELL:
+				mCellsWidget->onKeyRelease(e);
+				break;
+			}
+		}
 	}
 
 }

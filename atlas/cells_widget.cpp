@@ -11,10 +11,7 @@ namespace el
 		ui.view->sig_Start.connect([&]() {
 			ui.view->makeCurrent();
 			connectMouseInput();
-
 			connectObserver<CellHolder>(mSelects);
-
-			cout << ui.view->context() << endl;
 		});
 
 		ui.view->sig_Paint.connect([&]() {
@@ -84,10 +81,14 @@ namespace el
 
 	void CellsWidget::autoGenCells(uint sortorder, uint target_margin) {
 		if (gGUI.open() && mTexture) {
+			//ui.view->bindStage(); //TODO: investigate why this is necessary
+
+			safeClearSelection();
 			mTexture->autoGenerateAtlas(mTexture, mAlphaCut);
-			mTexture->atlas->packAndCacheCells();
 			sortCells(sortorder, target_margin);
-			onTextureUpdate();
+			recreateCellHoldersFromAtlas();
+			recreateList();
+			redrawAllCellHolders();
 			renameAll();
 		}
 	}
@@ -131,6 +132,14 @@ namespace el
 
 		for (sizet i = 0; i < cv.size(); i++)
 			cv[i]->index = i;
+	}
+
+	void CellsWidget::safeClearSelection() {
+		mSuppressSelect = true;
+		gAtlsUtil.cellList->clearSelection();
+		gAtlsUtil.cellList->setCurrentItem(0);
+		mSelects.clear();
+		mSuppressSelect = false;
 	}
 
 	void CellsWidget::connectMouseInput() {
@@ -244,6 +253,10 @@ namespace el
 								assert(holder.has<CellItem*>());
 								holder.get<CellItem*>()->setSelected(true);
 							}
+						}
+
+						if (mSelects.size() > 0) {
+							gAtlsUtil.cellList->setCurrentItem(obj<CellHolder>(mSelects.data()[0]).get<CellItem*>());
 						}
 						mSuppressSelect = false;
 					}
@@ -418,15 +431,12 @@ namespace el
 				return;
 
 			if (isVisible() && !mSuppressSelect) {
+				assert(mTexture && mTexture->atlas);
 				mSelects.clear();
-
-				if (mTexture && mTexture->atlas) {
-					auto& cells = mTexture->atlas->cells;
-					for (auto i = 0; i < gAtlsUtil.cellList->count(); i++) {
-						CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(i));
-						if (item->isSelected())
-							item->holder.update();
-					}
+				for (auto i = 0; i < gAtlsUtil.cellList->count(); i++) {
+					CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(i));
+					if (item->isSelected())
+						item->holder.update();
 				}
 
 				ui.view->update();
@@ -523,6 +533,8 @@ namespace el
 
 
 	void CellsWidget::onTextureUpdate() {
+		assert(mTexture);
+		safeClearSelection();
 		recreateCellHoldersFromAtlas();
 		recreateList();
 		redrawAllCellHolders();
@@ -531,19 +543,21 @@ namespace el
 	void CellsWidget::recreateList() {
 		assert(gGUI.open());
 
-		gAtlsUtil.cellList->clear();
-		mSelects.clear();
+		auto& list = *gAtlsUtil.cellList;
+		for (auto i = 0; i < list.count(); i++) {
+			delete list.item(i);
+		} list.clear();
 
 		if (mTexture && mTexture->atlas) {
 			auto& cells = mTexture->atlas->cells;
 			mSuppressSelect = true;
 			for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-				CellItem* item = new CellItem(gAtlsUtil.cellList);
+				CellItem* item = new CellItem(&list);
 				item->holder = holder;
 				assert(cells.contains(holder->cell));
 				item->setText(QString::fromUtf8(cells[holder->cell]));
-				gStage->emplace_or_replace<CellItem*>(holder, item);
-				gAtlsUtil.cellList->addItem(item);
+				holder.add<CellItem*>(item);
+				list.addItem(item);
 			}
 			mSuppressSelect = false;
 		}
@@ -559,8 +573,8 @@ namespace el
 	}
 
 	void CellsWidget::hideEditor() {
-		mSelects.clear();
-		gAtlsUtil.cellList->clearSelection();
+		//mSelects.clear();
+		//gAtlsUtil.cellList->clearSelection();
 		gAtlsUtil.cellList->hide();
 		hide();
 	}

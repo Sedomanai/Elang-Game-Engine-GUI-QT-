@@ -1,50 +1,58 @@
 #pragma once
 
 #include <QDialog>
-#include "ui_ghost_dialog.h"
-#include "aepalette.h"
 #include <common/string.h>
-#include "atlas_util.h"
 
-namespace il {
-	enum class eAtlasGhostType
+#include "util.h"
+#include "../elqt/widget/palette.h"
+
+#include <uic/ui_ghost_dialog.h>
+
+namespace el {
+
+	struct ElangAtlasGhostData
 	{
-		NONE,
-		PREVIOUS,
-		CUSTOM,
-		EXTERNAL
+		enum class eType
+		{
+			NONE,
+			PREVIOUS,
+			CUSTOM,
+			EXTERNAL
+		};
+
+		enum class eOrder
+		{
+			BACK,
+			FRONT
+		};
+
+		ElangAtlasGhostData() : type(eType::NONE), order(eOrder::BACK), cell(NullEntity), material(NullEntity) {};
+
+		eType type;
+		eOrder order;
+		asset<Cell> cell;
+		asset<EditorProjectMaterial> material;
 	};
 
-	enum class eAtlasGhostOrder
-	{
-		BACK,
-		FRONT
-	};
-
-	class GhostDialog : public QDialog
+	class ElangAtlasGhostDialog : public QDialog
 	{
 		Q_OBJECT
 
 	public:
-		GhostDialog(QWidget* parent = Q_NULLPTR);
-		~GhostDialog();
+		ElangAtlasGhostDialog(QWidget* parent = Q_NULLPTR);
+		~ElangAtlasGhostDialog();
 
 		void open();
-
-		strview externTexKey() { return mExternTexKey; }
-		listmap<EditorCell>* externCells() { return &mExternCells; }
-
 		bool confirmed() { return mConfirmed; }
-		eAtlasGhostType type;
-		eAtlasGhostOrder order;
-		uint cell;
+		ElangAtlasGhostData data() { return mData; }
 
-		void alignCustomByHotkey(uint cell);
+		//void alignCustomByHotkey(uint cell);
 	private:
+		ElangAtlasGhostData mData;
 		bool mConfirmed;
-		string mExternTexKey, mExternAtlasKey;
-		listmap<EditorCell> mExternCells;
+		//string mExternTexKey, mExternAtlasKey;
+		//listmap<EditorCell> mExternCells;
 		void customize(bool);
-		Ui::GhostDialog ui;
+		Ui::GhostDialogUI ui;
 	};
 }

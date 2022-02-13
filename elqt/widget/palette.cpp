@@ -42,7 +42,7 @@ namespace el {
 		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
 			mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
 		}
-		mCellShapes->line.flags |= Painter::LOCKED;
+		mCellShapes->line.flags |= ePainterFlags::LOCKED;
 	}
 
 	void QElangPaletteWidget::forceUnlockDebuggers() {
@@ -74,11 +74,11 @@ namespace el {
 		assert(gGUI.open());
 		assert(mTexture);
 
-		auto view = gStage->view<Button>();
+		auto view = gStage->view<CellHolder>();
 		gStage->destroy(view.begin(), view.end());
 
 		if (mTexture->atlas) {
-			auto&& cv = mTexture->atlas->linearCells(Atlas::eSortType::INDEX);
+			auto&& cv = mTexture->atlas->packedAndCachedCells();
 			for (auto i = 0; i < cv.size(); i++) {
 				auto it = cv[i];
 				auto& cell = *asset<Cell>(it);

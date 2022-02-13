@@ -4,18 +4,21 @@
 #include <qdialog.h>
 #include <qstring.h>
 #include <qopenglcontext.h>
+
+#include <elang_gui_assets.h>
 #include <apparatus/loader.h>
 
-#include "elang_qt_assets.h"
+
 #include "elang_qt_builder.h"
 #include "elqt/dialog/new_project.h"
 
 
 namespace el
 {
+	struct QElangView;
 	struct _ELANGQT_EXPORT ElangGUI
 	{
-		ElangGUI() : mProjectOpen(false), mOpenGLContext(0) {}
+		ElangGUI() : mProjectOpen(false), mOpenGLContext(0), mSignature(0) {}
 
 		Project rc, project;
 
@@ -28,8 +31,12 @@ namespace el
 		string projectPath() { return mProjectPath; }
 		bool open() { return mProjectOpen; }
 		void declareGlobalShareContext();
+
+		void initializeGlobalOpenGL(QWidget* widget);
 		
 	private:
+		void loadAllAssets();
+		QElangView* mSignature;
 		QOpenGLContext* mOpenGLContext;
 		string mProjectPath;
 		bool mProjectOpen;

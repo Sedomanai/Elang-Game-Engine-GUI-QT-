@@ -40,11 +40,11 @@ namespace el
 			mMainCam = gProject->makeSub<EditorCamera>();
 			mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
 			
-			mPainter = gProject->makeSub<EditorPainter>("basic_sprite", "texture_uv", 100000, mMainCam, Projection::eOrtho,
-				Painter::DEPTH_SORT | Painter::MULTI_MATERIAL | Painter::Z_CLEAR);
+			mPainter = gProject->makeSub<EditorProjectPainter>("basic_sprite", "texture_uv", 100000, mMainCam, Projection::eOrtho,
+				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
 			mPainter->init();
 			
-			mTexObj = gStage->make<EditorSprite>(NullEntity, mPainter, "");
+			mTexObj = gStage->make<EditorProjectSprite>(NullEntity, mPainter, "");
 			mTexObj.add<Position>().update();
 		});
 
@@ -116,7 +116,7 @@ namespace el
 				if (gMouse.state(1) == eInput::ONCE) {
 					setCursor(QCursor(mMoveCursor));
 					mMoveCenter = gMouse.currentPosition();
-				} updateAllEditorButtons(mMainCam);
+				} updateAllButtons<1>(mMainCam);
 			}
 		});
 
@@ -124,7 +124,7 @@ namespace el
 			if (gGUI.open()) {
 				if (gMouse.state(1) == eInput::HOLD) {
 					mMoveDelta = (gMouse.currentPosition() - mMoveCenter) * mMainCam->scale().x;
-				} updateAllEditorButtons(mMainCam);
+				} updateAllButtons<1>(mMainCam);
 			}
 		});
 
@@ -133,7 +133,7 @@ namespace el
 				if (gMouse.state(1) == eInput::LIFT) {
 					mMoveDelta = vec2(0, 0);
 					setCursor(QCursor(Qt::CursorShape::ArrowCursor));
-				} updateAllEditorButtons(mMainCam);
+				} updateAllButtons<1>(mMainCam);
 			}
 		});
 
@@ -178,7 +178,7 @@ namespace el
 		}
 	}
 
-	void QElangTextureWidget::updateMaterial(asset<EditorMaterial> texmat) {
+	void QElangTextureWidget::updateMaterial(asset<EditorProjectMaterial> texmat) {
 		if (gGUI.open()) {
 			ui.view->bindStage();
 			if (texmat && texmat->hasTexture()) {

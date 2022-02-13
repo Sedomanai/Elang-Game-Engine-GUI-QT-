@@ -1,6 +1,6 @@
 #pragma once
 #include "cells_widget.h"
-//#include "ghost_dialog.h"
+#include "ghost_dialog.h"
 
 namespace el
 {
@@ -8,48 +8,38 @@ namespace el
 	{
 		Q_OBJECT
 
-	//signals:
-	//	void sig_WheelEvent(float);
-	//	void sig_SafeTexture();
 	public:
 		OriginView(QWidget* parent = Q_NULLPTR);
 		virtual ~OriginView();
 
 		void onViewStart() override;
 		void onViewPaint() override;
-
+		void onViewMousePress() override;
+		void onViewMouseRelease() override;
+		void onViewMouseMove() override;
+		void onViewScrollWheel() override;
 
 		void updateTexture();
-		//void setGhost();
+		void setGhost(ElangAtlasGhostData ghostData) { mGhostData = ghostData; }
 
 		void showEditor();
 		void hideEditor();
 
-
-		//void moveCellOrigin(int x, int y);
-		//void captureGhost();
-		//void shiftCell(int dir);
+		void moveCellOrigin(int x, int y);
+		void captureGhost();
+		void shiftCell(int dir);
 
 	private:
-		Stage mStage;
-		asset<Camera> mMainCam;
-		asset<Painter> mSpritePainter;
 		asset<Texture> mTexture;
-		obj<Sprite> mTexObj;
-		//prop<Camera> mFuckingViewport;
-		//prop<Material> mTexMat, mExtMat;
+		asset<EditorCamera> mMainCam;
+		asset<EditorProjectPainter> mPainter;
+		
+		obj<EditorProjectSprite> mCellObj;
+		ElangAtlasGhostData mGhostData;
 
-		//uint mGhostRow;
-		//Scene mScene;
-		//EditorCell* mSelect, *mGhost;
-		//GhostDialog* mGDialog;
-		//bool mClicked;
-
-		//Batch mCellBatch, mGhostBatch;
-		//vec2 mGrabPos, mGrabUV;
+		EditorShapeDebug* mHighlighter;
+		vec2 mGrabPos, mGrabUV;
 		void connectList();
-		//void connectMouseInput();
-		//void drawMidLines();
-		//void batch(EditorCell*, const Batch&, strview painter, asset<Texture> tex);
+		void paintGhostCell();
 	};
 }

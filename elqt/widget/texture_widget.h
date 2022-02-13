@@ -18,7 +18,7 @@ namespace el
 		QElangTextureWidget(QWidget* parent = Q_NULLPTR);
 
 		void updateTick();
-		void updateMaterial(asset<EditorMaterial>);
+		void updateMaterial(asset<EditorProjectMaterial>);
 		QElangViewSignaled* view();
 
 
@@ -38,8 +38,8 @@ namespace el
 		Box mMainCamBox, mTextureBox;
 		asset<Texture> mTexture;
 		asset<EditorCamera> mMainCam;
-		asset<EditorPainter> mPainter;
-		obj<EditorSprite> mTexObj;
+		asset<EditorProjectPainter> mPainter;
+		obj<EditorProjectSprite> mTexObj;
 
 		bool mSuppressScroll;
 		bool mMovingScreen;

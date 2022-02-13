@@ -18,7 +18,8 @@ namespace el
 
 	struct AtlasUtility
 	{
-		asset<EditorMaterial> currentMaterial;
+		asset<EditorProjectMaterial> currentMaterial;
+		asset<EditorProjectMaterial> ghostMaterial;
 		// Entity must be obj<CellHolder>
 		//hashmap<Entity, CellItem*> cellItems;
 		QListExtension* cellList, * clipList;

@@ -1,29 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>GhostDialog</class>
- <widget class="QWidget" name="GhostDialog">
+ <class>GhostDialogUI</class>
+ <widget class="QWidget" name="GhostDialogUI">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>226</width>
-    <height>304</height>
+    <width>267</width>
+    <height>251</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>GhostDialog</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_6">
+  <layout class="QHBoxLayout" name="horizontalLayout_3">
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_5">
+     <property name="spacing">
+      <number>2</number>
+     </property>
      <item>
       <widget class="QGroupBox" name="typeBox">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>120</height>
+        </size>
+       </property>
        <property name="title">
         <string>Type</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>4</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>4</number>
+        </property>
+        <property name="bottomMargin">
+         <number>4</number>
+        </property>
         <item>
          <layout class="QGridLayout" name="gridLayout">
+          <property name="spacing">
+           <number>0</number>
+          </property>
           <item row="0" column="0">
            <widget class="QRadioButton" name="noneRadio">
             <property name="enabled">
@@ -77,10 +104,31 @@
      </item>
      <item>
       <widget class="QGroupBox" name="posBox">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>50</height>
+        </size>
+       </property>
        <property name="title">
         <string>Position</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>4</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>4</number>
+        </property>
+        <property name="bottomMargin">
+         <number>4</number>
+        </property>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
@@ -117,6 +165,18 @@
         <string>Custom</string>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_4">
+        <property name="leftMargin">
+         <number>4</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>4</number>
+        </property>
+        <property name="bottomMargin">
+         <number>4</number>
+        </property>
         <item>
          <layout class="QVBoxLayout" name="verticalLayout">
           <item>
@@ -125,42 +185,44 @@
              <number>0</number>
             </property>
             <item>
-             <widget class="QPushButton" name="textureButton">
+             <widget class="QLabel" name="texLabel">
+              <property name="maximumSize">
+               <size>
+                <width>50</width>
+                <height>16777215</height>
+               </size>
+              </property>
               <property name="text">
-               <string>Texture</string>
+               <string> Texture:</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="textureEdit"/>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="atlasLayout">
-            <item>
-             <widget class="QPushButton" name="atlasButton">
-              <property name="text">
-               <string>Atlas</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="atlasEdit"/>
+             <widget class="QComboBox" name="texture"/>
             </item>
            </layout>
           </item>
           <item>
            <layout class="QHBoxLayout" name="paletteLayout">
             <item>
-             <widget class="QPushButton" name="paletteButton">
+             <widget class="QPushButton" name="cellButton">
+              <property name="maximumSize">
+               <size>
+                <width>52</width>
+                <height>16777215</height>
+               </size>
+              </property>
               <property name="text">
-               <string>Palette</string>
+               <string>Cell</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="paletteEdit"/>
+             <widget class="QLabel" name="cellLabel">
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -170,11 +232,22 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="confirmButton">
-       <property name="text">
-        <string>Confirm</string>
-       </property>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QPushButton" name="confirmButton">
+         <property name="text">
+          <string>Confirm</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="cancelButton">
+         <property name="text">
+          <string>Cancel</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>

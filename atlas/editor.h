@@ -15,6 +15,7 @@
 #include "cells_widget.h"
 #include "origin_widget.h"
 #include "auto_gen.h"
+#include "ghost_dialog.h" // TODO: I'm thinking of bringing this to the ribbon bar
 #include "util.h"
 
 
@@ -37,13 +38,12 @@ namespace el
 		AtlasEditor(QWidget* parent = Q_NULLPTR);
 
 		void loop();
-		void initializeGLWidgets();
 
 	private:
 		bool mSuppressSignal;
 		bool mInitialized;
 
-		void init();
+		void init(bool debug = false);
 
 		//Set up all actions and their 
 		void setupActions();
@@ -63,10 +63,11 @@ namespace el
 		void keyPressEvent(QKeyEvent*) override;
 		void keyReleaseEvent(QKeyEvent*) override;
 
-		QOpenGLContext* ctx;
+		Stage mStage;
+
 		QVBoxLayout* mViewLayout;
 		QVBoxLayout* mListLayout;
-		QAction* mSetGhost;
+
 		QToolBar* mCellToolbar;
 		CellsWidget *mCellsWidget;
 
@@ -77,6 +78,7 @@ namespace el
 		//ClipsView* mClipsView;
 
 		AtlasAutoGenerator* mAutoGen;
+		ElangAtlasGhostDialog* mGhostDialog;
 		QComboBox* mTextureBox;
 
 		ViewMode mViewMode;
