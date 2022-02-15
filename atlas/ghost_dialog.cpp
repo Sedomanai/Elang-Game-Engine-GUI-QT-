@@ -10,6 +10,9 @@ namespace el {
 		ui.setupUi(this);
 		ui.posBox->setDisabled(true);
 		ui.customBox->setDisabled(true);
+		if (!mExternal) {
+			mExternal = gProject->makeSub<EditorProjectMaterial>();
+		}
 
 		connect(ui.typeGroup, qOverload<QAbstractButton*, bool>(&QButtonGroup::buttonToggled), [&](QAbstractButton* button, bool) {
 			ui.posBox->setDisabled(button == ui.noneRadio);
@@ -36,7 +39,14 @@ namespace el {
 
 		connect(ui.externRadio, &QRadioButton::toggled, [&]() {
 			mData.type = ElangAtlasGhostData::eType::EXTERNAL;
-			});
+			mData.material = mExternal;
+
+			if (ui.texture->count() == 0) {
+				for (auto it : gGUI.project.textures) {
+					ui.texture->addItem(QString::fromStdString(it.first));
+				}
+			}
+		});
 
 		connect(ui.frontRadio, &QRadioButton::toggled, [&]() {
 			mData.order = ElangAtlasGhostData::eOrder::FRONT;
@@ -50,50 +60,30 @@ namespace el {
 			if (gProject->textures.contains(text.toStdString())) {
 				assert(mData.material);
 				mData.material->setTexture(gProject->textures[text.toStdString()]);
+				ui.texLabel->setText(text);
 			}
 		});
 		connect(ui.cellButton, &QPushButton::clicked, [&]() {
-			QElangPaletteWidget widget;
-			QDialog dialog;
-			
-			//switch (mData.type) {
-			//case ElangAtlasGhostData::eType::CUSTOM:
-			//	
+			QDialog dialog(this);
+			AtlasPalette palette(&dialog, true);
+			Stage stage;
+			palette.view()->setStage(&stage);
 
-			//}
+			palette.view()->sig_Start.connect([&]() {
+				palette.updateMaterial(mData.material);
+				});
+			palette.sig_Clicked.connect([&](CellResult result) {
+				mData.cell = result.cell;
+				assert(mData.material && mData.material->hasTexture());
+				auto tex = mData.material->textures[0];
+				assert(tex && tex->atlas);
+				assert(tex->atlas->cells.contains(mData.cell));
+				ui.cellLabel->setText(QString::fromUtf8(tex->atlas->cells[mData.cell]));
+				dialog.close();
+			});
 
-			//auto filePath = QFileDialog::getOpenFileName(this, tr("External Atlas"), gAssetsDir.path(), tr("ATLAS (*.atls)"));
-			//mExternAtlasKey = gAssetsDir.relativeFilePath(filePath).toStdString();
-			//ui.atlasEdit->setText(QString::fromStdString(mExternAtlasKey));
-			//mExternAtlasKey = filePath.toStdString();
+			dialog.exec();
 		});
-
-		//connect(ui.paletteButton, &QPushButton::clicked, [&]() {
-		//	switch (type) {
-		//	case ElangAtlasGhostData::eType::CUSTOM:
-		//		/*
-		//		gPalette->open(gTexKey, &gCells);
-		//		cell = gPalette->selectedCellIndex;
-		//		if (cell != -1)
-		//			ui.paletteEdit->setText(QString::fromStdString(gCells.nameAt(cell)));
-		//		else ui.paletteEdit->setText("");*/
-		//		break;
-
-		//	case ElangAtlasGhostData::eType::EXTERNAL:
-		//		//mExternCells.clear();
-
-		//		//string data;
-		//		//loadFile(mExternAtlasKey, data);
-		//		//loadAtlasToCells(data, &mExternCells);
-		//		//gPalette->open(mExternTexKey, &mExternCells);
-		//		//cell = gPalette->selectedCellIndex;
-
-		//		//if (cell != -1)
-		//		//	ui.paletteEdit->setText(QString::fromStdString(mExternCells.nameAt(cell)));
-		//		//else ui.paletteEdit->setText("");
-		//		break;
-		//	}
-		//});
 
 		connect(ui.confirmButton, &QPushButton::clicked, [&]() {
 			mConfirmed = true;
@@ -121,8 +111,9 @@ namespace el {
 	void ElangAtlasGhostDialog::customize(bool value) {
 		ui.texLabel->setEnabled(value);
 		ui.texture->setEnabled(value);
-		ui.cellButton->setEnabled(true);
-		ui.cellLabel->setEnabled(true);
+
+		//ui.cellButton->setEnabled(true);
+		//ui.cellLabel->setEnabled(true);
 
 		if (!value) {
 			ui.cellLabel->setText("");

@@ -16,6 +16,12 @@ namespace el
 		obj<CellHolder> holder;
 	};
 
+	struct ClipItem : QListWidgetItem
+	{
+		ClipItem(QListWidget* parent) : QListWidgetItem(parent) {};
+		asset<Clip> clip;
+	};
+
 	struct AtlasUtility
 	{
 		asset<EditorProjectMaterial> currentMaterial;

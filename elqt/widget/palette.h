@@ -6,6 +6,7 @@
 
 namespace el {
 
+	
 	struct CellHolder
 	{
 		CellHolder(asset<Cell> cell_, const Box& rect_) : cell(cell_), rect(rect_) {};
@@ -25,25 +26,34 @@ namespace el {
 
 	class _ELANGQT_EXPORT QElangPaletteWidget : public QElangTextureWidget, public IButtonEvent
 	{
-		Q_OBJECT
-
 	public:
-		QElangPaletteWidget(QWidget* parent = Q_NULLPTR);
-		~QElangPaletteWidget() {
-			delete mCellShapes;
-			delete mHighlighter;
+
+		QElangPaletteWidget(QWidget* parent = Q_NULLPTR, bool internalLoop = false);
+		virtual ~QElangPaletteWidget() override {
+			release();
 		}
 
-		asset<Atlas> atlas;
 		single_signal<CellHolder> sig_Clicked;
+		void release() override {
+			QElangTextureWidget::release();
+			if (mCellShapes) {
+				delete mCellShapes;
+				delete mHighlighter;
+				mCellShapes = 0;
+			} 
+			
+		}
 	protected:
+
 		bool mHighlightBatched;
 		EditorShapeDebug* mCellShapes, *mHighlighter;
+		void safeCreatePalette();
 		void forceUnlockDebuggers();
 		void resetMainCamera();
 		void coloring(Box& box);
 		void recreateCellHoldersFromAtlas();
 		void redrawAllCellHolders();
+		void updateAllHolderCheck();
 
 		void onTextureUpdate() override;
 		void onHover(Entity self, Entity context) override;
@@ -51,4 +61,7 @@ namespace el {
 		void onExit(Entity self, Entity context) override {};
 		void postUpdate(Entity self, Entity context) override {};
 	};
+
+	using AtlasPalette = QElangPaletteWidget;
+	using CellResult = CellHolder;
 } 

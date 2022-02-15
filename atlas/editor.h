@@ -14,6 +14,7 @@
 #include "../elang_qt_globals.h"
 #include "cells_widget.h"
 #include "origin_widget.h"
+#include "clips_widget.h"
 #include "auto_gen.h"
 #include "ghost_dialog.h" // TODO: I'm thinking of bringing this to the ribbon bar
 #include "util.h"
@@ -75,7 +76,7 @@ namespace el
 		OriginView* mOriginView;
 
 		QToolBar* mClipsToolbar;
-		//ClipsView* mClipsView;
+		ClipsWidget* mClipsWidget;
 
 		AtlasAutoGenerator* mAutoGen;
 		ElangAtlasGhostDialog* mGhostDialog;

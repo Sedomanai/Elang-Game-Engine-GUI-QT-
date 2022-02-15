@@ -7,38 +7,10 @@ namespace el
 	{
 		setFocusPolicy(Qt::StrongFocus);
 		setMouseTracking(true);
-		//mGhostDialog = new GhostDialog(this);
-
-		//	asset<Texture> ghosttex;
-		//	switch (mGDialog->type) {
-		//	case eAtlasGhostType::PREVIOUS:
-		//	case eAtlasGhostType::CUSTOM:
-		//		ghosttex = tex;
-		//		break;
-		//	case eAtlasGhostType::EXTERNAL:
-		//		ghosttex = gTextures.find(string(mGDialog->externTexKey()));
-		//		break;
-		//	}
-
-		//	if (ghosttex) {
-		//		switch (mGDialog->order) {
-		//		case eAtlasGhostOrder::BACK:
-		//			batch(mGhost, mGhostBatch, "Ghost Painter Back", ghosttex);
-		//			break;
-		//		case eAtlasGhostOrder::FRONT:
-		//			batch(mGhost, mGhostBatch, "Ghost Painter Front", ghosttex);
-		//			break;
-		//		}
-		//	}
 	}
 
 	OriginView::~OriginView() {
-		//if (mInitialized) {
-		//	mTexMat->reset();
-		//	mExtMat->reset();
-		//	free(mCellBatch.vertices);
-		//	free(mGhostBatch.vertices);
-		//}
+		release();
 	}
 
 	void OriginView::onViewStart() {
@@ -48,19 +20,28 @@ namespace el
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		mMainCam = gProject->makeSub<EditorCamera>();
-		mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
+		safeCreateObjects();
+	}
+	
+	void OriginView::safeCreateObjects() {
+		makeCurrent();
 
-		mPainter = gProject->makeSub<EditorProjectPainter>("basic_sprite", "texture_uv", 32, mMainCam, Projection::eOrtho,
-			ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
-		mPainter->init();
+		if (!mMainCam) {
+			mMainCam = gProject->makeSub<EditorCamera>();
+			mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
 
-		mHighlighter = new EditorShapeDebug;
-		mHighlighter->init(mMainCam);
+			mPainter = gProject->makeSub<EditorProjectPainter>("basic_sprite", "texture_uv", 32, mMainCam, Projection::eOrtho,
+				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
+			mPainter->init();
 
-		mCellObj = gStage->make<EditorProjectSprite>(gAtlsUtil.currentMaterial, mPainter, "");
-		mCellObj.add<Position>();
+			mHighlighter = new EditorShapeDebug;
+			mHighlighter->init(mMainCam);
+		}
 
+		if (!mCellObj) {
+			mCellObj = gStage->make<EditorProjectSprite>(gAtlsUtil.currentMaterial, mPainter, "");
+			mCellObj.add<Position>();
+		}
 	}
 
 	void OriginView::paintGhostCell() {
@@ -117,8 +98,12 @@ namespace el
 					mCellObj->sync(rect);
 					mHighlighter->line.batchAABB(rect, color8(255, 255, 255, 255));
 
-					if (mGhostData.order == ElangAtlasGhostData::eOrder::FRONT)
+					if (mGhostData.order == ElangAtlasGhostData::eOrder::FRONT) {
 						paintGhostCell();
+						mCellObj->material = gAtlsUtil.currentMaterial;
+						mCellObj->setCell(item->text().toStdString());
+						mCellObj->update(mCellObj);
+					}
 
 					mHighlighter->line.batchline(line(-1000.0f, 0.0f, 1000.0f, 0.0f), color8(255, 255, 255, 255));
 					mHighlighter->line.batchline(line(0.0f, -1000.0f, 0.0f, 1000.0f), color8(255, 255, 255, 255));
@@ -201,56 +186,6 @@ namespace el
 		}
 	}
 
-	void OriginView::hideEditor() {
-		//gCellRow = gCellList->currentRow();
-		//switch (mGDialog->type) {
-		//case eAtlasGhostType::CUSTOM:
-		//case eAtlasGhostType::PREVIOUS:
-		//	if (mGhost)
-		//		mGhostRow = gCellList->row(mGhost->item);
-		//	mGhost = 0;
-		//}
-
-		//mSelect = 0;
-		//gCellList->clearSelection();
-		//gCellList->setCurrentRow(-1);
-		//gCellList->hide();
-		hide();
-	}
-
-	//void OriginView::setGhost() {
-	//	mGDialog->open();
-	//	
-	//	if (mGDialog->confirmed()) {
-	//		switch (mGDialog->type) {
-	//		case eAtlasGhostType::NONE:
-	//			mGhost = 0;
-	//			break;
-	//		case eAtlasGhostType::PREVIOUS:
-	//			mGhostBatch.material = mTexMat;
-	//		case eAtlasGhostType::CUSTOM:
-	//			if (mGDialog->cell != -1) {
-	//				mGhost = &(gCells.at(mGDialog->cell));
-	//			}
-	//			break;
-	//		case eAtlasGhostType::EXTERNAL:
-	//			mGhostBatch.material = mExtMat;
-	//			if (mGDialog->cell != -1) {
-	//				auto tex = gTextures.find(string(mGDialog->externTexKey()));
-	//				if (tex) {
-	//					mExtMat->textures[0] = tex;
-	//					mGhost = &(mGDialog->externCells()->at(mGDialog->cell));
-	//				} else cout << "External texture does not exist. Check its URL";
-	//			}
-	//			break;
-	//		}
-	//	}
-
-	//	// For SOME unknowable reason, touching external ghosts interferes with the current texture and blackens it out
-	//	// This reloads the existing texture should that hapen
-	//	emit sig_SafeTexture();
-	//}
-
 	void OriginView::showEditor() {
 		auto& list = *gAtlsUtil.cellList;
 		list.setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
@@ -258,22 +193,12 @@ namespace el
 		list.setDefaultDropAction(Qt::DropAction::IgnoreAction);
 		list.show();
 		show();
-
-		//if (!mGhost) {
-		//	if (gCellList->count() > 0)
-		//		mGhostRow = clamp(mGhostRow, 0, gCells.count() - 1);
-		//	else mGhostRow = -1;
-		//	if (mGhostRow != -1)
-		//		mGhost = &gCells.at(mGhostRow);
-		//}
-
-		//if (gCellList->count() > 0) {
-		//	gCellRow = clamp(gCellRow, 0, gCellList->count() - 1);
-		//} else gCellRow = -1;
-		//gCellList->setCurrentRow(gCellRow);
 	}
 
-
+	void OriginView::hideEditor() {
+		gAtlsUtil.cellList->hide();
+		hide();
+	}
 
 	void OriginView::moveCellOrigin(int x, int y) {
 		if (mTexture && mTexture->atlas && cursor() != Qt::ClosedHandCursor) {
@@ -305,47 +230,4 @@ namespace el
 			mGhostData.cell = item->holder->cell;
 		} update();
 	}
-
-	//void OriginView::connectMouseInput() {
-	//	connect(this, &OriginView::sig_MousePress, [&]() {
-	//		if (gMouse.state(0) == eInput::ONCE && cursor() == Qt::OpenHandCursor) {
-	//			mScene.makeCurrent();
-	//			setCursor(Qt::ClosedHandCursor);
-	//			mGrabPos = gMouse.currentPosition();
-	//			mGrabUV = vec2(mSelect->ox, mSelect->oy);
-	//			update();
-	//		}
-	//	});
-	//	connect(this, &OriginView::sig_MouseRelease, [&]() {
-	//		if (gMouse.state(0) == eInput::LIFT && cursor() == Qt::ClosedHandCursor) {
-	//			setCursor(Qt::OpenHandCursor);
-	//			update();
-	//		}
-	//	});
-	//	connect(this, &OriginView::sig_MouseMove, [&]() {
-	//		mScene.makeCurrent();
-	//		Camera& viewport = *mFuckingViewport;
-
-	//		vec2 mpos = gMouse.currentPosition();
-	//		if (cursor() == Qt::ClosedHandCursor) {
-	//			auto delta = viewport * (mpos - mGrabPos);
-	//			mSelect->ox = int(delta.x + mGrabUV.x);
-	//			mSelect->oy = int(-delta.y + mGrabUV.y);
-	//			update();
-	//		} else {
-	//			auto tex = gTextures.find(gTexKey);
-	//			aabb rect;
-	//			if (mSelect) {
-	//				auto& data = *mSelect;
-	//				auto& cell = Cell(data.x, data.y, data.w, data.h, data.ox, data.oy, tex->width, tex->height);
-	//				rect = aabb(cell.left, cell.down, cell.right, cell.up);
-	//			}
-
-	//			setCursor(Qt::ArrowCursor);
-	//			if (rect.contains(viewport * mpos)) {
-	//				setCursor(Qt::OpenHandCursor);
-	//			}
-	//		}
-	//	});
-	//}
 }

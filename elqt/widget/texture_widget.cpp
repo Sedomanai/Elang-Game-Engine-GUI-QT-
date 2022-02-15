@@ -12,17 +12,19 @@ namespace el
 {
 	QElangViewSignaled* QElangTextureWidget::view(){ return ui.view; }
 
-	QElangTextureWidget::QElangTextureWidget(QWidget* parent)
+	QElangTextureWidget::QElangTextureWidget(QWidget* parent, bool internalLoop)
 		: QWidget(parent), mMoveCursor(Qt::SizeAllCursor), mSuppressScroll(false), mMovingScreen(false) 
 	{
 		ui.setupUi(this);
 
 		// test debug
-		QTimer* timer = new QTimer(this);
-		connect(timer, &QTimer::timeout, [&]() {
-			updateTick();
-			});
-		timer->start(1000.0f / 60.0f);
+		if (internalLoop) {
+			QTimer* timer = new QTimer(this);
+			connect(timer, &QTimer::timeout, [&]() {
+				loop();
+				});
+			timer->start(1000.0f / 60.0f);
+		}
 		//
 
 		ui.view->sig_Start.connect([&]() {
@@ -32,179 +34,144 @@ namespace el
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-			mWinWidth = ui.view->width();
-			mWinHeight = ui.view->height();
-			
 			glClearColor(0.2f, 0.3f, 0.2f, 1.0f);
-
-			mMainCam = gProject->makeSub<EditorCamera>();
-			mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
-			
-			mPainter = gProject->makeSub<EditorProjectPainter>("basic_sprite", "texture_uv", 100000, mMainCam, Projection::eOrtho,
-				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
-			mPainter->init();
-			
-			mTexObj = gStage->make<EditorProjectSprite>(NullEntity, mPainter, "");
-			mTexObj.add<Position>().update();
+			safeCreateObjects();
 		});
 
 		
 		ui.view->sig_Resize.connect([&](int w, int h) {
-			mWinWidth = w;
-			mWinHeight = h;
-			updateViewport(-mWinWidth / 2, mWinWidth / 2, -mWinHeight / 2, mWinHeight / 2);
-
-			if (gGUI.open()) {
-				syncCamera();
-				syncScrollBars();
-			}
+			syncCamera();
+			syncScrollBars();
 		});
 
 		ui.view->sig_Paint.connect([&]() {
 			glClearDepth(1.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			if (gGUI.open()) {
-				mTexObj->batch();
-				mPainter->paint();
-			}
-			
+			mTexObj->batch();
+			mPainter->paint();
 
-			/*gScene->paint();
-
-			for (auto e : mScene.objects.view<HitAABB>()) {
-				auto& btn = mScene.objects.get<HitAABB>(e);
-				auto pos = mScene.objects.get<Object2d>(e).local().position();
-				btn.copy(pos).debug(&mScene.debug, color(0, 255, 0, 255), true);
-			}
-			mScene.debug.draw();
-
-			bindGizmoObjects(true);
-			for (const auto& e : mGizmos.view<Sprite>()) {
-				auto& obj = mGizmos.get<Object2d>(e);
-				if (obj.active()) {
-					auto& spr = mGizmos.get<Sprite>(e);
-					spr.update(obj.world());
-					spr.batch();
-				}
-			} 
-			
-			mScene.atelier.draw();*/
 		});
 
 		connect(ui.hori, &QScrollBar::valueChanged, [&](int value) {
-			if (gGUI.open() && !mSuppressScroll) {
+			if (!mSuppressScroll) {
 				mMainCam->setPosX(value + mMainCamBox.width() / 2);
 				ui.view->update();
 			}
 		});
 		connect(ui.verti, &QScrollBar::valueChanged, [&](int value) {
-			if (gGUI.open() && !mSuppressScroll) {
+			if (!mSuppressScroll) {
 				mMainCam->setPosY(-value - mMainCamBox.height() /2);
 				ui.view->update();
 			}
 		});
 	}
 
-	void QElangTextureWidget::showEvent(QShowEvent* e) {
-		updateViewport(-mWinWidth / 2, mWinWidth / 2, -mWinHeight / 2, mWinHeight / 2);
+	void QElangTextureWidget::safeCreateObjects()
+	{
+		ui.view->makeCurrent();
+		if (!mMainCam) {
+			mMainCam = gProject->makeSub<EditorCamera>();
+			mMainCam->to(vec3(0.0f, 0.0f, -1000.0f));
+			mPainter = gProject->makeSub<EditorProjectPainter>("basic_sprite", "texture_uv", 
+				100000, mMainCam, Projection::eOrtho,
+				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
+			mPainter->init();
+		}
+
+		if (!mTexObj) {
+			mTexObj = gStage->make<EditorProjectSprite>(NullEntity, mPainter, "");
+			mTexObj.add<Position>().update();
+		}
 	}
 
 	void QElangTextureWidget::connectMouseInput() {
 		ui.view->sig_MousePress.connect([&]() {
-			if (gGUI.open()) {
-				if (gMouse.state(1) == eInput::ONCE) {
-					setCursor(QCursor(mMoveCursor));
-					mMoveCenter = gMouse.currentPosition();
-				} updateAllButtons<1>(mMainCam);
+			if (gMouse.state(1) == eInput::ONCE) {
+				setCursor(QCursor(mMoveCursor));
+				mMoveCenter = gMouse.currentPosition();
 			}
 		});
 
 		ui.view->sig_MouseMove.connect([&]() {
-			if (gGUI.open()) {
-				if (gMouse.state(1) == eInput::HOLD) {
-					mMoveDelta = (gMouse.currentPosition() - mMoveCenter) * mMainCam->scale().x;
-				} updateAllButtons<1>(mMainCam);
+			if (gMouse.state(1) == eInput::HOLD) {
+				mMoveDelta = (gMouse.currentPosition() - mMoveCenter) * mMainCam->scale().x;
 			}
 		});
 
 		ui.view->sig_MouseRelease.connect([&]() {
-			if (gGUI.open()) {
-				if (gMouse.state(1) == eInput::LIFT) {
-					mMoveDelta = vec2(0, 0);
-					setCursor(QCursor(Qt::CursorShape::ArrowCursor));
-				} updateAllButtons<1>(mMainCam);
+			if (gMouse.state(1) == eInput::LIFT) {
+				mMoveDelta = vec2(0, 0);
+				setCursor(QCursor(Qt::CursorShape::ArrowCursor));
 			}
 		});
 
 		ui.view->sig_ScrollWheel.connect([&]() {
-			if (gGUI.open()) {
-				float val = (5.0f / 6.0f);
-				val = pow(val, gMouse.wheel());
-				if (val != 0) {
-					val = (val > 0) ? val : -1.0f / val; // scroll up: 5/6, down: 6/5
+			float val = (5.0f / 6.0f);
+			val = pow(val, gMouse.wheel());
+			if (val != 0) {
+				val = (val > 0) ? val : -1.0f / val; // scroll up: 5/6, down: 6/5
 
-					auto mpos = *mMainCam * gMouse.currentPosition();
-					auto cpos = mMainCam->position();
-					auto delta = mpos - cpos;
-					delta *= (1 - val);
+				auto mpos = *mMainCam * gMouse.currentPosition();
+				auto cpos = mMainCam->position();
+				auto delta = mpos - cpos;
+				delta *= (1 - val);
 
-					mMainCam->scale(vec3(val, val, 1));
-					mMainCam->move(vec3(delta, 0));
+				mMainCam->scale(vec3(val, val, 1));
+				mMainCam->move(vec3(delta, 0));
 
-					syncCamera();
-					syncScrollBars();
-				}
+				syncCamera();
+				syncScrollBars();
 			}
 		}); 
 	}
 
-	void QElangTextureWidget::updateTick() {
-		if (gGUI.open()) {
-			ui.view->bindStage();
-			if (isActiveWindow() && (gMouse.state(1) == eInput::HOLD) && mMainCam) {
-				auto& cam = *mMainCam;
-				cam.move(vec3(mMoveDelta * 0.5, 0));
+	void QElangTextureWidget::loop() {
+		//ui.view->bindStage();
+		if (isActiveWindow() && (gMouse.state(1) == eInput::HOLD) && mMainCam) {
+			auto& cam = *mMainCam;
+			cam.move(vec3(mMoveDelta * 0.5, 0));
 
-				mSuppressScroll = true;
-				ui.hori->setValue(round(mMainCamBox.l - mTextureBox.l));
-				ui.verti->setValue(round(mTextureBox.t - mMainCamBox.t));
-				mSuppressScroll = false;
+			mSuppressScroll = true;
+			ui.hori->setValue(round(mMainCamBox.l - mTextureBox.l));
+			ui.verti->setValue(round(mTextureBox.t - mMainCamBox.t));
+			mSuppressScroll = false;
 
-				syncCamera();
-				syncScrollBars();
-				ui.view->update();
-			}
+			syncCamera();
+			syncScrollBars();
+			ui.view->update();
 		}
 	}
 
 	void QElangTextureWidget::updateMaterial(asset<EditorProjectMaterial> texmat) {
-		if (gGUI.open()) {
-			ui.view->bindStage();
-			if (texmat && texmat->hasTexture()) {
-				mTexture = texmat->textures[0];
-				mTexObj->material = texmat;
-				mTexObj->update(mTexObj);
+		//ui.view->bindStage();
+		if (texmat && texmat->hasTexture()) {
+			mTexture = texmat->textures[0];
 
-				auto w = (int)mTexture->width() + 2;
-				auto h = -(int)mTexture->height() - 2;
-				mTextureBox = Box(-2, h, w, 2);
-				onTextureUpdate();
-				syncCamera();
-				syncScrollBars();
-				ui.view->update();
-			}
+			safeCreateObjects();
+			mTexObj->material = texmat;
+			mTexObj->update(mTexObj);
+
+			auto w = (int)mTexture->width() + 2;
+			auto h = -(int)mTexture->height() - 2;
+			mTextureBox = Box(-2, h, w, 2);
+
+			onTextureUpdate();
+			syncCamera();
+			syncScrollBars();
+			ui.view->update();
 		}
 	}
 	
 	void QElangTextureWidget::syncCamera() {
-		assert(gGUI.open());
-
 		if (mMainCam && mTexture) {
 			auto& cam = *mMainCam;
 
-			vec2 lb = cam * vec2(-mWinWidth/2, -mWinHeight / 2);
-			vec2 rt = cam * vec2(mWinWidth/2, mWinHeight /2);
+			auto w = round(ui.view->width());
+			auto h = round(ui.view->height());
+
+			vec2 lb = cam * vec2(-w /2.0f, -h / 2.0f);
+			vec2 rt = cam * vec2(w / 2.0f, h / 2.0f);
 			mMainCamBox = Box(lb.x, lb.y, rt.x, rt.y);
 
 			vec2 move;
@@ -235,12 +202,10 @@ namespace el
 		}
 	}
 	void QElangTextureWidget::syncScrollBars() {
-		assert(gGUI.open());
-
 		if (mMainCam && mTexture) {
 			auto& cam = *mMainCam;
-			float ix = mWinWidth * cam.scale().x;
-			float iy = mWinHeight * cam.scale().y;
+			float ix = ui.view->width() * cam.scale().x;
+			float iy = ui.view->height() * cam.scale().y;
 
 			auto tw = mTextureBox.width();
 			auto mw = mMainCamBox.width();

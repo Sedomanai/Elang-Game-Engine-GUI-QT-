@@ -19,7 +19,7 @@ namespace el
 			mSignature->sig_Start.connect([&]() {
 				if (glewInit() != GLEW_OK)
 					throw "GLEW could not initialize.";
-				cout << "Global Qt OpenGL Initialized .." << endl;
+				cout << "Global Qt OpenGL GLEW Initialized .." << endl;
 				sig_Initialized.invoke();
 				mSignature->hide();
 				hide();

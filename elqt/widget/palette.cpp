@@ -3,21 +3,14 @@
 #include <qopenglcontext.h>
 
 namespace el {
-
-	QElangPaletteWidget::QElangPaletteWidget(QWidget* parent)
-		: QElangTextureWidget(parent), mHighlightBatched(false)
+	
+	QElangPaletteWidget::QElangPaletteWidget(QWidget* parent, bool internalLoop)
+		: QElangTextureWidget(parent, internalLoop), mHighlightBatched(false), mCellShapes(0)
 	{
 		ui.view->setMouseTracking(true);
 
 		ui.view->sig_Start.connect([&]() {
-			gStage->storage<asset<Cell>>().reserve(300);
-			gStage->storage<Box>().reserve(300);
-			gStage->storage<Button>().reserve(300);
-			mCellShapes = new EditorShapeDebug;
-			mCellShapes->init(mMainCam);
-
-			mHighlighter = new EditorShapeDebug;
-			mHighlighter->init(mMainCam);
+			safeCreatePalette();
 		});
 
 		ui.view->sig_Paint.connect([&]() {
@@ -27,13 +20,26 @@ namespace el {
 				mHighlightBatched = false;
 			}
 		});
+
+		ui.view->sig_MousePress.connect([&]() {
+			updateAllHolderCheck();
+			});
+		ui.view->sig_MouseRelease.connect([&]() {
+			updateAllHolderCheck();
+			});
+		ui.view->sig_MouseMove.connect([&]() {
+			updateAllHolderCheck();
+			});
 	}
 
+	
 	void QElangPaletteWidget::onTextureUpdate() {
+		safeCreatePalette();
 		recreateCellHoldersFromAtlas();
 		redrawAllCellHolders();
 	}
 
+	
 	void QElangPaletteWidget::redrawAllCellHolders() {
 		assert(gGUI.open());
 		assert(mTexture);
@@ -45,12 +51,40 @@ namespace el {
 		mCellShapes->line.flags |= ePainterFlags::LOCKED;
 	}
 
+	
+	void QElangPaletteWidget::updateAllHolderCheck() {
+		auto pos = *mMainCam * gMouse.currentPosition();
+		sizet i = 0;
+		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
+			assert(holder);
+			bool hit = holder->rect.contains(pos);
+			holder.get<Button>().update(holder, hit);
+		}
+	}
+
+	
+	void QElangPaletteWidget::safeCreatePalette() {
+		if (!mCellShapes) {
+			ui.view->makeCurrent();
+			gStage->storage<asset<Cell>>().reserve(300);
+			gStage->storage<Box>().reserve(300);
+			gStage->storage<Button>().reserve(300);
+			mCellShapes = new EditorShapeDebug;
+			mCellShapes->init(mMainCam);
+
+			mHighlighter = new EditorShapeDebug;
+			mHighlighter->init(mMainCam);
+		}
+	}
+
+	
 	void QElangPaletteWidget::forceUnlockDebuggers() {
 		mCellShapes->line.forceUnlock();
 		mHighlighter->line.forceUnlock();
 		mHighlighter->fill.forceUnlock();
 	}
 
+	
 	void QElangPaletteWidget::resetMainCamera() {
 		mCellShapes->line.camera = mMainCam;
 		mCellShapes->fill.camera = mMainCam;
@@ -58,6 +92,7 @@ namespace el {
 		mHighlighter->fill.camera = mMainCam;
 	}
 
+	
 	void QElangPaletteWidget::coloring(Box& box) {
 		color8 color(30, 255, 220, 255);
 		if (gMouse.state(0) >= eInput::ONCE) {
@@ -70,6 +105,7 @@ namespace el {
 		mHighlighter->fill.batchAABB(box, color);
 	}
 
+	
 	void QElangPaletteWidget::recreateCellHoldersFromAtlas() {
 		assert(gGUI.open());
 		assert(mTexture);
@@ -95,6 +131,7 @@ namespace el {
 		}
 	}
 
+	
 	void QElangPaletteWidget::onHover(Entity self, Entity context) {
 		auto holder = obj<CellHolder>(self);
 		if (holder) {
@@ -109,6 +146,5 @@ namespace el {
 				}
 			}
 		}
-
 	}
 }

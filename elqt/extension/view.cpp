@@ -15,9 +15,21 @@ namespace el
 			onViewStart();
 		}
 	}                
-	void QElangView::paintGL() { bindStage(); makeCurrent(); onViewPaint(); }
-	void QElangView::resizeGL(int w, int h) { mWidth = w; mHeight = h; bindStage();; makeCurrent(); onViewResize(w, h); }
-
+	
+	void QElangView::paintGL() { 
+		bindStage(); 
+		updateViewport(-mWidth / 2.0f, mWidth / 2.0f, -mHeight / 2.0f, mHeight / 2.0f);
+		makeCurrent(); 
+		onViewPaint(); 
+	}
+	
+	void QElangView::resizeGL(int w, int h) { 
+		bindStage();
+		mWidth = w; mHeight = h;
+		makeCurrent();
+		updateViewport(-mWidth / 2.0f, mWidth / 2.0f, -mHeight / 2.0f, mHeight / 2.0f);
+		onViewResize(w, h); 
+	}
 
 	void QElangView::mousePressEvent(QMouseEvent* me) {
 		bindStage();

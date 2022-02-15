@@ -64,7 +64,6 @@ namespace el {
 				intmax = numbers[i];
 			}
 		}
-		cout << intmax << endl;
 
 		if (intmax != -2) {
 			name.push_back('_');

@@ -1,13 +1,13 @@
 #include "editor.h"
 #include <qopenglcontext>
+#include <qtimer.h>
 
 namespace el
 {
 	AtlasEditor::AtlasEditor(QWidget* parent)
-		: QMainWindow(parent), mSuppressSignal(false), mInitialized(false)
+		: QMainWindow(parent), mSuppressSignal(false), mInitialized(false), mCellsWidget(0)
 	{
 		ui.setupUi(this);
-
 		setupActions();
 
 		if (gGUI.open()) {
@@ -17,6 +17,20 @@ namespace el
 			ui.actionSaveProjectAs->setVisible(false);
 			init();
 			// change mode
+		} else { 
+			QTimer* timer = new QTimer(this);
+			connect(timer, &QTimer::timeout, [&]() {
+				loop();
+			});
+			timer->start(1000.0f / 60.0f);
+		}
+
+	}
+
+	void AtlasEditor::loop() {
+		if (mCellsWidget) {
+			mCellsWidget->loop();
+			mClipsWidget->loop();
 		}
 	}
 
@@ -24,6 +38,7 @@ namespace el
 	void AtlasEditor::init(bool debug) {
 		if (!mInitialized) {
 			mInitialized = true;
+			bind(&mStage);
 			// DO NOT CHANGE THE ORDER
 			setupLayout(); // do not touch
 			setupList(); // do not touch
@@ -32,9 +47,15 @@ namespace el
 			setupClipMode();
 			setupInitView();
 
-			bind(&mStage);
 			mViewActions->setEnabled(true);
 			gAtlsUtil.currentMaterial = gProject->makeSub<EditorProjectMaterial>(); // delete this material later
+		} else {
+			mCellsWidget->release();
+			mCellsWidget->safeCreateObjects();
+			mOriginView->release();
+			mOriginView->safeCreateObjects();
+			//mClipsWidget->release();
+			//mClipsWidget->safeCreateObjects();
 		}
 
 		mTextureBox->clear();
@@ -44,7 +65,7 @@ namespace el
 
 		if (debug) {
 			mTextureBox->setCurrentIndex(1);
-			ui.actionOriginMode->trigger();
+			ui.actionClipMode->trigger();
 		}
 	}
 	void AtlasEditor::setupLayout() {
@@ -84,7 +105,7 @@ namespace el
 		gAtlsUtil.clipList->hide();
 		mOriginView->hide();
 		mOriginToolbar->hide();
-		//mClipsView->hide();
+		mClipsWidget->hide();
 		mClipsToolbar->hide();
 	}
 
@@ -99,6 +120,7 @@ namespace el
 				gAtlsUtil.currentMaterial->setTexture(gProject->textures[text.toStdString()]);
 				mCellsWidget->updateMaterial(gAtlsUtil.currentMaterial);
 				mOriginView->updateTexture();
+				mClipsWidget->updateTexture();
 			}
 		});
 
@@ -207,14 +229,18 @@ namespace el
 	void AtlasEditor::setupClipMode()
 	{
 		mClipsToolbar = new QToolBar(this);
-		//mClipsToolbar->addAction("Add Frame", [&]() {
-		//	//mClipsView->addFrame();
-		//	});
+		mClipsToolbar->addAction("Add Clip", [&]() {
+			mClipsWidget->addClip();
+		});
+		mClipsToolbar->addAction("Add Frame", [&]() {
+			mClipsWidget->addFrame();
+		});
 
-		//mClipsView = new ClipsView(this);
-		//mClipsView->setMinimumWidth(750);
-		////mClipsView->showEditor();
-		//mViewLayout->addWidget(mClipsView);
+		mClipsWidget = new ClipsWidget(this);
+		mClipsWidget->setMinimumWidth(750);
+		mClipsWidget->view()->setStage(&mStage);
+		mClipsWidget->reel()->setStage(&mStage);
+		mViewLayout->addWidget(mClipsWidget);
 
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mClipsToolbar);
 	}
@@ -267,7 +293,7 @@ namespace el
 				break;
 			case ViewMode::CLIP:
 				mClipsToolbar->hide();
-				//mClipsView->hideEditor();
+				mClipsWidget->hideEditor();
 				gMouse.reset();
 				break;
 			}
@@ -284,7 +310,7 @@ namespace el
 			}
 			else if (action == ui.actionClipMode) {
 				mViewMode = ViewMode::CLIP;
-				//mClipsView->showEditor();
+				mClipsWidget->showEditor();
 				mClipsToolbar->show();
 			}
 			});

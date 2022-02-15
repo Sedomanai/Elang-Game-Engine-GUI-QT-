@@ -29,12 +29,23 @@ namespace el
 		void captureGhost();
 		void shiftCell(int dir);
 
+		void release() {
+			if (mMainCam) {
+				mMainCam.destroy();
+				mPainter.destroy();
+				delete mHighlighter;
+			}
+		}
+
+		void safeCreateObjects();
+
 	private:
 		asset<Texture> mTexture;
 		asset<EditorCamera> mMainCam;
 		asset<EditorProjectPainter> mPainter;
-		
+
 		obj<EditorProjectSprite> mCellObj;
+
 		ElangAtlasGhostData mGhostData;
 
 		EditorShapeDebug* mHighlighter;

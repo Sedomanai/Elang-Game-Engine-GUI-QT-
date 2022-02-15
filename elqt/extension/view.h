@@ -29,6 +29,8 @@ namespace el {
 		static signal<> sSig_GlobalGL;
 		void bindStage() { bind(mStage); }
 		void setStage(Stage* stage) { mStage = stage; }
+		float width() { return mWidth; }
+		float height() { return mHeight; }
 	protected:
 		virtual void onViewStart() {};
 		virtual void onViewPaint() {};

@@ -46,12 +46,10 @@ namespace el {
 		bool confirmed() { return mConfirmed; }
 		ElangAtlasGhostData data() { return mData; }
 
-		//void alignCustomByHotkey(uint cell);
 	private:
+		asset<EditorProjectMaterial> mExternal;
 		ElangAtlasGhostData mData;
 		bool mConfirmed;
-		//string mExternTexKey, mExternAtlasKey;
-		//listmap<EditorCell> mExternCells;
 		void customize(bool);
 		Ui::GhostDialogUI ui;
 	};

@@ -15,20 +15,26 @@ namespace el
 		Q_OBJECT
 
 	public:
-		QElangTextureWidget(QWidget* parent = Q_NULLPTR);
+		QElangTextureWidget(QWidget* parent = Q_NULLPTR, bool internalLoop = false);
+		virtual ~QElangTextureWidget() { release(); }
 
-		void updateTick();
+		void loop();
 		void updateMaterial(asset<EditorProjectMaterial>);
 		QElangViewSignaled* view();
 
-
+		virtual void release() {
+			if (mMainCam) {
+				ui.view->makeCurrent();
+				mMainCam.destroy();
+				mPainter.destroy();
+			}
+		}
+		void safeCreateObjects();
 	protected:
 		Ui::QElangTextureWidgetUI ui;
 		virtual void onTextureUpdate() {};
 
 		Qt::CursorShape mMoveCursor;
-		int mWinWidth, mWinHeight;
-
 		aabb mCamBounds;
 		vec2 mMoveDelta;
 		vec2 mMoveCenter;
@@ -47,7 +53,6 @@ namespace el
 		void connectMouseInput();
 		void syncCamera(); // fixed
 		void syncScrollBars(); // fixed
-		void showEvent(QShowEvent* e) override;
 	};
 
 }

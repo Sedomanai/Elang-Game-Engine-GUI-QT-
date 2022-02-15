@@ -53,7 +53,6 @@ namespace el {
 		color8 selectColoring();
 		void onHover(Entity self, Entity context) override {};
 
-		//vec2 mCellOrigin;
 		QCursor mTempCursor;
 		uint mCursorState;
 
