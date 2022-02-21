@@ -2,6 +2,7 @@
 #include <qmenu.h>
 #include <qlineedit.h>
 
+#include "../elqt/color_code.h"
 
 namespace el
 {
@@ -19,17 +20,18 @@ namespace el
 
 				color8 c = selectColoring();
 				for (obj<CellHolder> holder : mSelects) {
+					c.a = 255;
 					mHighlighter->line.batchAABB(holder->rect, c, 0.0f);
-					c.a = 80;
+					c.a = gEditorColor.cellFillAlpha;
 					mHighlighter->fill.batchAABB(holder->rect, c, 0.0f);
 				}
 
 				switch (mState) {
 				case SELECTING:
 					if (mCtrl)
-						mHighlighter->line.batchAABB(mSelectRect, color8(255, 0, 0, 255), -10.0f);
+						mHighlighter->line.batchAABB(mSelectRect, gEditorColor.createRect, -10.0f);
 					else 
-						mHighlighter->line.batchAABB(mSelectRect, color8(255, 255, 255, 255), -10.0f);
+						mHighlighter->line.batchAABB(mSelectRect, gEditorColor.selectRect, -10.0f);
 					break;
 				}
 				mHighlighter->draw();
@@ -63,19 +65,18 @@ namespace el
 		}
 	}
 
-
 	color8 CellsWidget::selectColoring() {
 		if (mTempCursor == Qt::ArrowCursor)
-			return color8(30, 255, 220, 255);
+			return gEditorColor.cellHovered;
 		if (mTempCursor == Qt::OpenHandCursor)
-			return color8(180, 255, 30, 255);
+			return gEditorColor.cellOpenHanded;
 		else if (mTempCursor == Qt::ClosedHandCursor)
-			return color8(100, 100, 240, 255);
+			return gEditorColor.cellShadow;
 		else {
 			if (mState == SNONE)
-				return color8(255, 120, 220, 255);
+				return gEditorColor.cellSizing;
 			else
-				return color8(100, 100, 240, 255);
+				return gEditorColor.cellShadow;
 		}
 	}
 

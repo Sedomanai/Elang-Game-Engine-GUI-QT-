@@ -26,17 +26,11 @@ namespace el
 	{
 		asset<EditorProjectMaterial> currentMaterial;
 		asset<EditorProjectMaterial> ghostMaterial;
-		// Entity must be obj<CellHolder>
-		//hashmap<Entity, CellItem*> cellItems;
 		QListExtension* cellList, * clipList;
-		float resolution = 1.0f;
+
 	};
 
 	inline AtlasUtility gAtlsUtil;
-
-	//using EditorClip = vector<string>;
-	//inline string gTexKey;
-	//inline QDir gProjectDir;
 
 
 	// TODO: Completely deprecate

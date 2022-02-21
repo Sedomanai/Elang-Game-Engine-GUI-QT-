@@ -1,22 +1,41 @@
 #pragma once
 #include "cells_widget.h"
 #include <uic/ui_clips_widget.h>
+#include <elements/clip.h>
 #include <common/random.h>
 //#include "aepalette.h"
 //#include "atlas_util.h"
 
 namespace el
 {
+
+	#define cReelFrameSize 100
+
 	struct ClipframeHolder
 	{
+		EditorProjectCanvas canvas;
 		sizet index;
-		aabb rect;
+
+		ClipframeHolder(
+			asset<EditorProjectMaterial> material, asset<EditorProjectPainter> painter
+		) : canvas(material, painter) {}
+
+		void reshape(asset<Clip> clip) {
+			assert(index < clip->size());
+			auto cell = clip->at(index);
+			if (cell)
+				canvas.update(cell);
+		}
+
+		void reorder(sizet index_) {
+			index = index_;
+			canvas.bounds = aabb(index * cReelFrameSize, -cReelFrameSize, index * cReelFrameSize + cReelFrameSize, -15);
+		}
 	};
 
-	struct ClipsWidget : public QElangView, public IButtonEvent
+	struct ClipsWidget : public QWidget, public IButtonEvent
 	{
 		Q_OBJECT
-
 	public:
 		ClipsWidget(QWidget* parent = Q_NULLPTR);
 
@@ -24,90 +43,55 @@ namespace el
 		void showEditor();
 		void hideEditor();
 		void loop();
+		void clearAllViews();
 
 		void addClip();
+		void removeClip();
 		void addFrame();
 
+		void onKeyPress(QKeyEvent*);
+		void onKeyRelease(QKeyEvent*);
+
 		QElangView* view() { return ui.view; }
-		QElangView* reel() { return ui.frames; }
+		QElangView* reel() { return ui.reel; }
 	private:
-		void addReel(Clipframe);
+		void addReel(asset<Clip>);
+		void recreateReel(asset<Clip>);
 
 		int mViewWidth, mViewHeight, mFramesWidth, mFramesHeight;
+		int mMovingSide;
 
 		rng crng;
 		Ui::ClipsWidgetUI ui;
 
-		asset<EditorCamera> mMainCamView;
-		asset<EditorProjectPainter> mPainterView;
-		EditorShapeDebug* mDebugView;
+		asset<EditorCamera> mViewCam;
+		asset<EditorProjectPainter> mViewPainter;
+		EditorShapeDebug* mViewShapes;
+
 
 		asset<Texture> mTexture;
 		obj<EditorProjectSprite> mClipObj;
+		obj<ClipframeHolder> mHovering, mMoving, mRemovable;
 
-		asset<EditorCamera> mMainCamFrames;
-		asset<EditorProjectPainter> mPainterFrames;
-		EditorShapeDebug* mDebugFrames;
-		obj<EditorProjectSprite> mTestObj;
+		asset<EditorCamera> mReelCam;
+		asset<EditorProjectPainter> mReelPainter;
+		EditorShapeDebug* mReelShapes;
+		QLabel* mLabel;
 
 		bool mPaused;
-		sizet mFrame;
-	
+		uint32 mFrame;
+
 		void updateAllCanvasButton();
 		void safeCreateViewObjects();
 		void safeCreateFrameObjects();
 		void connectList();
-		void recreateReel();
 		void syncScroll();
 
 		// Inherited via IButtonEvent
-		void onEnter(Entity self, Entity context) override;
+		void onEnter(Entity self, Entity context) override {};
 		void onHover(Entity self, Entity context) override;
-		void onExit(Entity self, Entity context) override;
-		void postUpdate(Entity self, Entity context) override;
-
-	//	Q_OBJECT
-	//public:
-	//	ClipsWidget(QWidget* parent = Q_NULLPTR);
-	//	virtual ~ClipsWidget();
-	//	void importAtlasBegin();
-	//	void importAtlasEnd();
-
-	//	void init();
-	//	void loop();
-	//	void updateTexture();
-		
-
-	//	uint safeFrame();
-	//	void addFrame();
-	//	
-	//	signal<uint> sig_ChangeBar;
-	//signals:
-	//	void sig_WheelEvent(float);
-	//	void sig_Initialized();
-	//private:
-	//	
-	//	pptr<ReelEvent> revent;
-	//	QListExtension* mClipList;
-	//	
-	//	vector<Entity> mEnts;
-	//	EditorClip* mSelect;
-	//	float mCurrFrame, mSpeed;
-	//	float mDuration;
-
-	//	Batch mSprite;
-	//	bool mMovingCell;
-
-	//	Scene mScene;
-	//	prop<Camera> mMainView, mReelView;
-	//	prop<Material> mTexmat;
-
-
-	
-
-		//	void connectMouseInput();
-	//	void recreateList();
-	//	void reorder();
+		void onExit(Entity self, Entity context) override {};
+		void postUpdate(Entity self, Entity context) override {};
 	};
 }
 

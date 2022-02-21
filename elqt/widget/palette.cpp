@@ -1,6 +1,7 @@
 #include "palette.h"
 
 #include <qopenglcontext.h>
+#include "../color_code.h"
 
 namespace el {
 	
@@ -46,7 +47,7 @@ namespace el {
 		forceUnlockDebuggers();
 		resetMainCamera();
 		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-			mCellShapes->line.batchAABB(holder->rect, color8(0, 255, 55, 255));
+			mCellShapes->line.batchAABB(holder->rect, gEditorColor.cell);
 		}
 		mCellShapes->line.flags |= ePainterFlags::LOCKED;
 	}
@@ -56,9 +57,10 @@ namespace el {
 		auto pos = *mMainCam * gMouse.currentPosition();
 		sizet i = 0;
 		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-			assert(holder);
+			assert(holder); // debug stage binding after sig_Clicked
 			bool hit = holder->rect.contains(pos);
 			holder.get<Button>().update(holder, hit);
+			i++;
 		}
 	}
 
@@ -94,14 +96,17 @@ namespace el {
 
 	
 	void QElangPaletteWidget::coloring(Box& box) {
-		color8 color(30, 255, 220, 255);
-		if (gMouse.state(0) >= eInput::ONCE) {
-			color.r = 180;
-			color.g = 255;
-			color.b = 30;
-		}
+		color8 color = (gMouse.state(0) >= eInput::ONCE) ?
+			gEditorColor.cellSelected : gEditorColor.cellHovered;
+		//color8 color(30, 255, 220, 255);
+		//gEditorColor.cell
+		//if (gMouse.state(0) >= eInput::ONCE) {
+		//	color.r = 180;
+		//	color.g = 255;
+		//	color.b = 30;
+		//}
 		mHighlighter->line.batchAABB(box, color);
-		color.a = 80;
+		color.a = gEditorColor.cellFillAlpha;
 		mHighlighter->fill.batchAABB(box, color);
 	}
 

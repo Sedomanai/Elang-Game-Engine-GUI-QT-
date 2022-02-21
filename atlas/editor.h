@@ -7,6 +7,8 @@
 #include <qcloseevent>
 #include <qhideevent>
 #include <qlabel.h>
+#include <qtimer.h>
+
 #include <apparatus/loader.h>
 
 #include "../elqt/widget/palette.h"
@@ -77,6 +79,7 @@ namespace el
 
 		QToolBar* mClipsToolbar;
 		ClipsWidget* mClipsWidget;
+		QTimer* mClipsTimer;
 
 		AtlasAutoGenerator* mAutoGen;
 		ElangAtlasGhostDialog* mGhostDialog;

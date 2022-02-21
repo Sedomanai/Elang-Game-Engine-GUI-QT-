@@ -2,6 +2,7 @@
 #include "elang_qt_globals.h"
 #include "elqt/extension/view.h"
 
+
 namespace el
 {
 	ElangGUI gGUI;
@@ -55,15 +56,9 @@ namespace el
 	void ElangGUI::declareGlobalShareContext() {
 		QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 	}
-	void ElangGUI::initializeGlobalOpenGL(QWidget* widget) {
-		bind(project);
-		if (!mSignature) {
-			mSignature = new QElangView(widget);
-			el::QElangView::sSig_GlobalGL.connect([&]() { // make global here
-				cout << "Global OpenGL Initialized.." << endl;
-				mSignature->close();
-			});
-		} 
+
+	void ElangGUI::loadEditorAssets() {
+		//gProject->makeSub<EditorFontFace>();
 	}
 }
 

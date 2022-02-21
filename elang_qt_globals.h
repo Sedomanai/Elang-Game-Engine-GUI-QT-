@@ -10,6 +10,7 @@
 
 
 #include "elang_qt_builder.h"
+#include "tools/bmpfont.h"
 #include "elqt/dialog/new_project.h"
 
 
@@ -31,8 +32,7 @@ namespace el
 		string projectPath() { return mProjectPath; }
 		bool open() { return mProjectOpen; }
 		void declareGlobalShareContext();
-
-		void initializeGlobalOpenGL(QWidget* widget);
+		void loadEditorAssets();
 		
 	private:
 		void loadAllAssets();

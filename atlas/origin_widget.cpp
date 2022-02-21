@@ -5,7 +5,7 @@ namespace el
 	OriginView::OriginView(QWidget* parent)
 		: QElangView(parent) //, mClicked(false), mSelect(0), mGhost(0), mGhostRow(-1)
 	{
-		setFocusPolicy(Qt::StrongFocus);
+		//setFocusPolicy(Qt::StrongFocus);
 		setMouseTracking(true);
 	}
 
@@ -174,7 +174,7 @@ namespace el
 
 	void OriginView::connectList() {
 		connect(gAtlsUtil.cellList, &QListExtension::currentRowChanged, [&]() {
-			setFocus();
+			//setFocus();
 			update();
 		});
 	}

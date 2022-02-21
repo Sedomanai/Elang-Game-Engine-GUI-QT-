@@ -1,7 +1,5 @@
 #include "editor.h"
 #include <qopenglcontext>
-#include <qtimer.h>
-
 namespace el
 {
 	AtlasEditor::AtlasEditor(QWidget* parent)
@@ -19,21 +17,18 @@ namespace el
 			// change mode
 		} else { 
 			QTimer* timer = new QTimer(this);
-			connect(timer, &QTimer::timeout, [&]() {
-				loop();
-			});
+			connect(timer, &QTimer::timeout, this, &AtlasEditor::loop);
 			timer->start(1000.0f / 60.0f);
 		}
-
 	}
 
 	void AtlasEditor::loop() {
-		if (mCellsWidget) {
+		if (mInitialized) {
+			bind(&mStage);
 			mCellsWidget->loop();
-			mClipsWidget->loop();
+			//mClipsWidget->loop();
 		}
 	}
-
 
 	void AtlasEditor::init(bool debug) {
 		if (!mInitialized) {
@@ -68,6 +63,7 @@ namespace el
 			ui.actionClipMode->trigger();
 		}
 	}
+
 	void AtlasEditor::setupLayout() {
 		QHBoxLayout* layout = new QHBoxLayout();
 		layout->setContentsMargins(QMargins(0, 0, 0, 0));
@@ -132,6 +128,9 @@ namespace el
 			mAutoGen->exec();
 			if (mAutoGen->gen) {
 				mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
+				//TODO: add warning, will remove all clips and cells
+				mClipsWidget->clearAllViews();
+
 				mAutoGen->gen = false;
 			}
 		}); autogen->setShortcut(QKeySequence(Qt::Key_F));
@@ -232,15 +231,23 @@ namespace el
 		mClipsToolbar->addAction("Add Clip", [&]() {
 			mClipsWidget->addClip();
 		});
+		auto removeClip = mClipsToolbar->addAction("Remove Clip", [&]() {
+			mClipsWidget->removeClip();
+			}); removeClip->setShortcut(QKeySequence(Qt::Key_Delete));
 		mClipsToolbar->addAction("Add Frame", [&]() {
 			mClipsWidget->addFrame();
 		});
 
 		mClipsWidget = new ClipsWidget(this);
 		mClipsWidget->setMinimumWidth(750);
+
 		mClipsWidget->view()->setStage(&mStage);
 		mClipsWidget->reel()->setStage(&mStage);
 		mViewLayout->addWidget(mClipsWidget);
+
+		mClipsTimer = new QTimer(this);
+		connect(mClipsTimer, &QTimer::timeout, mClipsWidget, &ClipsWidget::loop);
+		mClipsTimer->start(1000.0f / 12.0f);
 
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mClipsToolbar);
 	}
@@ -324,6 +331,9 @@ namespace el
 			case ViewMode::CELL:
 				mCellsWidget->onKeyPress(e);
 				break;
+			case ViewMode::CLIP:
+				mClipsWidget->onKeyPress(e);
+				break;
 			}
 		}
 	}
@@ -333,6 +343,9 @@ namespace el
 			switch (mViewMode) {
 			case ViewMode::CELL:
 				mCellsWidget->onKeyRelease(e);
+				break;
+			case ViewMode::CLIP:
+				mClipsWidget->onKeyRelease(e);
 				break;
 			}
 		}
