@@ -509,18 +509,6 @@ namespace el
 			}
 		});
 	}
-
-	void CellsWidget::deleteAll() {
-		mSuppressSelect = true;
-		for (uint i = 0; i < gCells.count(); i++) {
-			delete gCells[i].item;
-		} gCells.clear();
-		mSelects.clear();
-
-		mSelectRect = aabb();
-		mSuppressSelect = false;
-	}
-
 	void CellsWidget::importAtlasBegin() {
 		deleteAll();
 	}

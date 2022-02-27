@@ -8,6 +8,20 @@ namespace el
 	{
 		Q_OBJECT
 
+		enum CursorState
+		{
+			LEFT = 2,
+			BOTTOM = 4,
+			RIGHT = 8,
+			TOP = 16,
+		};
+
+		enum eState {
+			CREATING,
+			MOVING,
+			MOVING_HITBOX
+		};
+
 	public:
 		OriginView(QWidget* parent = Q_NULLPTR);
 		virtual ~OriginView();
@@ -25,6 +39,7 @@ namespace el
 		void showEditor();
 		void hideEditor();
 
+		void drawCellHitbox(bool batchOnly = false);
 		void moveCellOrigin(int x, int y);
 		void captureGhost();
 		void shiftCell(int dir);
@@ -38,6 +53,8 @@ namespace el
 		}
 
 		void safeCreateObjects();
+		void onKeyPress(QKeyEvent*);
+		void onKeyRelease(QKeyEvent*);
 
 	private:
 		asset<Texture> mTexture;
@@ -45,6 +62,11 @@ namespace el
 		asset<EditorProjectPainter> mPainter;
 
 		obj<EditorProjectSprite> mCellObj;
+
+		eState mCreateState;
+		aabb mCreateRect;
+		aabb mGrabRect;
+		uint mCursorState;
 
 		ElangAtlasGhostData mGhostData;
 

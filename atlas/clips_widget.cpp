@@ -24,6 +24,26 @@ namespace el
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+
+			ui.speedBox->setEnabled(false);
+			ui.repeatBox->setEnabled(false);
+			connect(ui.speedBox, &QDoubleSpinBox::valueChanged, [&](double value) {
+				auto item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+				if (item && item->clip)
+					item->clip->speed = (float)value;
+			});
+			connect(ui.repeatBox, &QCheckBox::toggled, [&](bool value) {
+				auto item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+				if (item && item->clip)
+					item->clip->repeat = (float)value;
+			});
+			connect(ui.playButton, &QPushButton::clicked, [&]() {
+				if (mClipObj)
+					mClipObj.get<EditorProjectClipAnimation>().reset();
+				});
+
+			
+
 			safeCreateFrameObjects();
 		});
 
@@ -39,7 +59,6 @@ namespace el
 				}
 			}
 		});
-
 
 		ui.view->sig_ScrollWheel.connect([&]() {
 			float val = (5.0f / 6.0f);
@@ -61,11 +80,18 @@ namespace el
 			updateViewport(0, ui.reel->width(), -ui.reel->height(), 0);
 
 			auto view = gStage->view<ClipframeHolder>();
+
+			sizet i = 0;
 			for (obj<ClipframeHolder> holder : view) {
 				holder->canvas.batch();
+				auto x = i * cReelFrameSize + cReelFrameSize;
+				mReelShapes->line.batchline(line(x, 0, x, -cReelFrameSize), color8(255, 255, 255, 255));
+				i++;
 			}
 			mReelPainter->paint();
 
+			mReelShapes->line.batchline(line(0,-14, cReelFrameSize * i, -14), color8(255, 255, 255, 255));
+			mReelShapes->fill.batchAABB(aabb(0, -14, cReelFrameSize * i, 0), color8(255, 255, 255, 80));
 			if (mClipObj && mClipObj->cell() != asset<Cell>() && view.size() > 0) {
 				auto frame = mClipObj.get<EditorProjectClipAnimation>().frame();
 				auto rect = aabb(frame * cReelFrameSize, -cReelFrameSize, frame * cReelFrameSize + cReelFrameSize, 0);
@@ -252,7 +278,7 @@ namespace el
 	}
 
 	void ClipsWidget::loop() {
-		if (mClipObj)
+		if (mClipObj.valid() && mClipObj.has<EditorProjectClipAnimation>())
 			mClipObj.get<EditorProjectClipAnimation>().update(mClipObj);
 		ui.view->update();
 	}
@@ -408,7 +434,6 @@ namespace el
 				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
 			mReelPainter->init();
 
-			//hmm.. will i need this?
 			mReelShapes = new EditorShapeDebug;
 			mReelShapes->init(mReelCam);
 		}
@@ -443,6 +468,19 @@ namespace el
 			if (item && item->clip) {
 				recreateReel(item->clip);
 				mClipObj.get<EditorProjectClipAnimation>().setClip(item->clip);
+
+				ui.speedBox->setEnabled(true);
+				ui.repeatBox->setEnabled(true);
+				ui.playButton->setEnabled(true);
+
+				ui.speedBox->setValue(item->clip->speed);
+				ui.repeatBox->setChecked(item->clip->repeat);
+				//item->clip->speed;
+
+			} else {
+				ui.speedBox->setEnabled(false);
+				ui.repeatBox->setEnabled(false);
+				ui.playButton->setEnabled(false);
 			}
 			syncScroll();
 		});

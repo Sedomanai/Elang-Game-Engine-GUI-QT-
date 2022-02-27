@@ -3,7 +3,7 @@
 namespace el
 {
 	OriginView::OriginView(QWidget* parent)
-		: QElangView(parent) //, mClicked(false), mSelect(0), mGhost(0), mGhostRow(-1)
+		: QElangView(parent), mCreateState(MOVING)
 	{
 		//setFocusPolicy(Qt::StrongFocus);
 		setMouseTracking(true);
@@ -53,11 +53,11 @@ namespace el
 			break;
 		case ElangAtlasGhostData::eType::PREVIOUS:
 			{
-				CellItem* gitem = reinterpret_cast<CellItem*>
+				CellItem* item = reinterpret_cast<CellItem*>
 					(gAtlsUtil.cellList->item(gAtlsUtil.cellList->currentRow() - 1));
-				if (gitem) {
+				if (item) {
 					mCellObj->material = gAtlsUtil.currentMaterial;
-					mCellObj->setCell(gitem->text().toStdString());
+					mCellObj->setCell(item->text().toStdString());
 				}
 				else goto none_label;
 			}
@@ -70,12 +70,22 @@ namespace el
 
 		mCellObj->update(mCellObj);
 		mCellObj->batch();
+		drawCellHitbox();
 		mPainter->color = vec4(1.0f, 1.0f, 1.0f, 0.35f);
 		mPainter->paint();
 	}
 
-	void OriginView::onViewPaint()
-	{		
+
+	void OriginView::drawCellHitbox(bool batchOnly) {
+		auto cell = mCellObj->cell();
+		if (cell && cell.has<aabb>()) {
+			auto& rect = cell.get<aabb>();
+			mHighlighter->line.batchAABB(rect, batchOnly ? color8(0, 255, 0, 255) : color8(40, 100, 150, 255));
+			mHighlighter->fill.batchAABB(rect, batchOnly ? color8(0, 255, 0, 80) : color8(40, 100, 150, 100));
+		} if (!batchOnly) mHighlighter->draw();
+	}
+
+	void OriginView::onViewPaint() 	{		
 		glClearDepth(1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		updateViewport(-width() / 2, width() / 2, -height() / 2, height() / 2);
@@ -93,6 +103,7 @@ namespace el
 					mCellObj->batch();
 					mPainter->color = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 					mPainter->paint();
+					drawCellHitbox(true);
 
 					aabb rect;
 					mCellObj->sync(rect);
@@ -105,6 +116,11 @@ namespace el
 						mCellObj->update(mCellObj);
 					}
 
+					mHighlighter->line.batchAABB(mCreateRect, color8(255, 255, 0, 255));
+
+					mHighlighter->line.batchAABB(mGrabRect, color8(55, 180, 180, 255));
+					mHighlighter->fill.batchAABB(mGrabRect, color8(55, 180, 180, 80));
+
 					mHighlighter->line.batchline(line(-1000.0f, 0.0f, 1000.0f, 0.0f), color8(255, 255, 255, 255));
 					mHighlighter->line.batchline(line(0.0f, -1000.0f, 0.0f, 1000.0f), color8(255, 255, 255, 255));
 					mHighlighter->draw();
@@ -115,46 +131,186 @@ namespace el
 
 	}
 
-	void OriginView::onViewMousePress() {	
-		if (gMouse.state(0) == eInput::ONCE && cursor() == Qt::OpenHandCursor) {
-			CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
-			assert(item && item->holder);
-			setCursor(Qt::ClosedHandCursor);
-			mGrabPos = *mMainCam * gMouse.currentPosition();
-			mGrabUV = vec2(item->holder->cell->oX, item->holder->cell->oY);
-			update();
+	void OriginView::onViewMousePress() {
+		if (QApplication::queryKeyboardModifiers() & Qt::ControlModifier)
+			mCreateState = eState::CREATING;
+
+		switch (mCreateState) {
+		case eState::CREATING:
+		{
+			auto pos = *mMainCam * gMouse.currentPosition();
+			mCreateRect = aabb(pos.x, pos.y, pos.x, pos.y);
+		}
+			break;
+		case eState::MOVING:
+			if (gMouse.state(0) == eInput::ONCE && cursor() == Qt::OpenHandCursor) {
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+				assert(item && item->holder);
+				setCursor(Qt::ClosedHandCursor);
+				mGrabPos = *mMainCam * gMouse.currentPosition();
+				mGrabUV = vec2(item->holder->cell->oX, item->holder->cell->oY);
+				update();
+			}
+			break;
+		case eState::MOVING_HITBOX:
+			if (gMouse.state(0) == eInput::ONCE) {
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+				assert(item && item->holder);
+				auto cell = item->holder->cell;
+				assert(cell && cell.has<aabb>());
+				if (cursor() == Qt::OpenHandCursor) {
+					setCursor(Qt::ClosedHandCursor);
+					mGrabPos = *mMainCam * gMouse.currentPosition();
+					mGrabRect = cell.get<aabb>();
+				} else if (mCursorState > 0) {
+					mGrabRect = cell.get<aabb>();
+				}
+			}
+			break;
+		};
+	}
+
+	void OriginView::onViewMouseMove() {
+		if (cursor() == Qt::OpenHandCursor || cursor() == Qt::ArrowCursor) {
+			if (mCreateState == eState::MOVING && QApplication::queryKeyboardModifiers() & Qt::AltModifier)
+				mCreateState = eState::MOVING_HITBOX;
+			else if (mCreateState == eState::MOVING_HITBOX && !(QApplication::queryKeyboardModifiers() & Qt::AltModifier))
+				mCreateState = eState::MOVING;
+		}
+		
+
+		auto mpos = *mMainCam * gMouse.currentPosition();
+		CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		switch (mCreateState) {
+		case eState::CREATING:
+			mCreateRect.r = mpos.x;
+			mCreateRect.t = mpos.y;
+			break;
+		case eState::MOVING:
+			if (item && item->holder) {
+				if (cursor() == Qt::ClosedHandCursor) {
+					auto delta = (mpos - mGrabPos);//*mMainCam * (mpos - mGrabPos);
+					item->holder->cell->oX = int(delta.x + mGrabUV.x);
+					item->holder->cell->oY = int(-delta.y + mGrabUV.y);
+					item->holder->moldCellFromRect(mTexture->width(), mTexture->height(), item->holder->cell->index);
+					update();
+				} else {
+					setCursor(Qt::ArrowCursor);
+					if (!(QApplication::queryKeyboardModifiers() & Qt::ControlModifier) && 
+						!(QApplication::queryKeyboardModifiers() & Qt::AltModifier)) {
+						aabb rect;
+						mCellObj->sync(rect);
+						if (rect.contains(mpos)) {
+							setCursor(Qt::OpenHandCursor);
+						}
+					}
+				}
+			}
+		break;
+		case eState::MOVING_HITBOX:
+			if (item && item->holder) {
+				auto cell = item->holder->cell;
+				assert(cell);
+				if (cell.has<aabb>()) {
+					auto& rect = cell.get<aabb>();
+
+					if (gMouse.state(0) == eInput::HOLD) {
+						if (cursor() == Qt::ClosedHandCursor) {
+							auto delta = (mpos - mGrabPos);
+							mGrabRect = rect;
+							mGrabRect.move(delta);
+							update();
+						} else if (mCursorState > 0) {
+							if ((mCursorState & LEFT) == LEFT) {
+								mGrabRect.l = mpos.x;
+							}
+							else if ((mCursorState & RIGHT) == RIGHT) {
+								mGrabRect.r = mpos.x;
+							}
+							if ((mCursorState & BOTTOM) == BOTTOM) {
+								mGrabRect.b = mpos.y;
+							}
+							else if ((mCursorState & TOP) == TOP) {
+								mGrabRect.t = mpos.y;
+							}
+						}
+					} else {
+						setCursor(Qt::ArrowCursor);
+						if (rect.contains(mpos)) {
+							setCursor(Qt::OpenHandCursor);
+
+							auto sx = mMainCam->scale().x;
+							auto sy = mMainCam->scale().y;
+							mCursorState = 0;
+							if (rect.l > mpos.x - 10.0f * sx)
+								mCursorState += CursorState::LEFT;
+							else if (rect.r < mpos.x + 10.0f * sx)
+								mCursorState += CursorState::RIGHT;
+							if (rect.b > mpos.y - 10.0f * sy)
+								mCursorState += CursorState::BOTTOM;
+							else if (rect.t < mpos.y + 10.0f * sy)
+								mCursorState += CursorState::TOP;
+
+							bool left = ((mCursorState & CursorState::LEFT) == CursorState::LEFT);
+							bool right = ((mCursorState & CursorState::RIGHT) == CursorState::RIGHT);
+							bool top = ((mCursorState & CursorState::TOP) == CursorState::TOP);
+							bool bottom = ((mCursorState & CursorState::BOTTOM) == CursorState::BOTTOM);
+
+							if (left || right) {
+								setCursor(Qt::SizeHorCursor);
+							} if (top || bottom) {
+								if (cursor() == Qt::SizeHorCursor) {
+									if ((left && top) || (right && bottom)) {
+										setCursor(Qt::SizeFDiagCursor);
+									}
+									else setCursor(Qt::SizeBDiagCursor);
+								}
+								else
+									setCursor(Qt::SizeVerCursor);
+							}
+						}
+					}
+				} else
+					setCursor(Qt::ArrowCursor);
+			}
+			break;
 		}
 	}
 
 	void OriginView::onViewMouseRelease() {
-		if (gMouse.state(0) == eInput::LIFT && cursor() == Qt::ClosedHandCursor) {
-			setCursor(Qt::OpenHandCursor);
-			update();
-		}
-	}
-
-	void OriginView::onViewMouseMove()
-	{	
 		CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
-		if (item && item->holder) {
-			vec2 mpos = *mMainCam * gMouse.currentPosition();
+		switch (mCreateState) {
+		case eState::CREATING:
+			if (item && item->holder) {
+				mCreateRect.normalize();
+				gProject->emplace_or_replace<aabb>(item->holder->cell, mCreateRect);
+			}
 
-			if (cursor() == Qt::ClosedHandCursor) {
-				auto delta = (mpos - mGrabPos);//*mMainCam * (mpos - mGrabPos);
-				item->holder->cell->oX = int(delta.x + mGrabUV.x);
-				item->holder->cell->oY = int(-delta.y + mGrabUV.y);
-				item->holder->moldCellFromRect(mTexture->width(), mTexture->height(), item->holder->cell->index);
+			mCreateRect = aabb(-10000, -10000, -10000, -10000);
+			mCreateState = MOVING;
+			break;
+		case eState::MOVING:
+			if (gMouse.state(0) == eInput::LIFT && cursor() == Qt::ClosedHandCursor) {
+				setCursor(Qt::OpenHandCursor);
 				update();
-			} else {
-				setCursor(Qt::ArrowCursor);
-				aabb rect;
-				mCellObj->sync(rect);
-				if (rect.contains(mpos)) {
+			}
+			break;
+		case eState::MOVING_HITBOX:
+			if (gMouse.state(0) == eInput::LIFT && item && item->holder) {
+				if (cursor() == Qt::ClosedHandCursor || mCursorState > 0) {
+					mGrabRect.normalize();
+					mGrabRect.roundCorners();
+					gProject->emplace_or_replace<aabb>(item->holder->cell, mGrabRect);
 					setCursor(Qt::OpenHandCursor);
+					update();
 				}
 			}
+
+			mGrabRect = aabb(-10000, -10000, -10000, -10000);
+			break;
 		}
 	}
+
 
 	void OriginView::onViewScrollWheel() {
 		float val = (5.0f / 6.0f);
@@ -229,5 +385,17 @@ namespace el
 			mGhostData.order = ElangAtlasGhostData::eOrder::BACK;
 			mGhostData.cell = item->holder->cell;
 		} update();
+	}
+
+	void OriginView::onKeyPress(QKeyEvent* e) {
+		if (e->key() == Qt::Key::Key_Control || e->key() == Qt::Key::Key_Alt) {
+			onViewMouseMove();
+		}
+	}
+
+	void OriginView::onKeyRelease(QKeyEvent* e) {
+		if (e->key() == Qt::Key::Key_Alt || e->key() == Qt::Key::Key_Control) {
+			onViewMouseMove();
+		}
 	}
 }

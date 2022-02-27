@@ -1,5 +1,7 @@
 #include "editor.h"
 #include <qopenglcontext>
+
+
 namespace el
 {
 	AtlasEditor::AtlasEditor(QWidget* parent)
@@ -54,13 +56,28 @@ namespace el
 		}
 
 		mTextureBox->clear();
-		for (auto it : gGUI.project.textures) {
+		for (auto it : gProject->textures) {
 			mTextureBox->addItem(QString::fromStdString(it.first));
 		}
+		//mAtlasBox->clear();
+		//for (auto it : gProject->atlases) {
+		//	mAtlasBox->addItem(QString::fromStdString(it.first));
+		//}
 
 		if (debug) {
 			mTextureBox->setCurrentIndex(1);
-			ui.actionClipMode->trigger();
+
+			//assert(gAtlsUtil.currentMaterial);
+			//assert(gAtlsUtil.currentMaterial->hasTexture());
+			//auto texture = gAtlsUtil.currentMaterial->textures[0];
+			//if (texture && texture->atlas) {
+			//	assert(gProject->atlases.contains(texture->atlas));
+			//	auto text = gProject->atlases[texture->atlas];
+			//	mAtlasBox->setCurrentText(QString::fromStdString(text));
+			//}
+
+			ui.actionOriginMode->trigger();
+			//ui.actionClipMode->trigger();
 		}
 	}
 
@@ -120,10 +137,53 @@ namespace el
 			}
 		});
 
+		QLabel* label2 = new QLabel("  Set Atlas  ", mCellToolbar);
+		mAtlasBox = new QComboBox(mCellToolbar);
+		mAtlasBox->setMinimumWidth(100);
+		connect(mAtlasBox, &QComboBox::currentTextChanged, [&](const QString& text) {
+			if (gProject->atlases.contains(text.toStdString())) {
+				assert(gAtlsUtil.currentMaterial);
+				if (gAtlsUtil.currentMaterial->hasTexture()) {
+					auto texture = gAtlsUtil.currentMaterial->textures[0];
+					asset<Atlas> atlas = gProject->atlases[text.toStdString()];
+
+					if (texture->atlas != atlas) {
+						// unlink previous
+						if (texture->atlas) {
+							sizet index = 0;
+							auto texs = texture->atlas->textures;
+							for (auto tex : texs) {
+								if (tex == texture) {
+									texs.erase(texs.begin() + index);
+									break;
+								} index++;
+							}
+						}
+
+						texture->atlas = atlas;
+						atlas->textures.emplace_back(texture);
+						mCellsWidget->updateMaterial(gAtlsUtil.currentMaterial);
+					}
+				}
+
+				mOriginView->updateTexture();
+				mClipsWidget->updateTexture();
+			}
+		});
+
 		mCellToolbar->addWidget(label);
 		mCellToolbar->addWidget(mTextureBox);
 		mCellToolbar->addSeparator();
 
+		mCellToolbar->addWidget(label2);
+		mCellToolbar->addWidget(mAtlasBox);
+		mCellToolbar->addSeparator();
+
+
+		//auto autogen = mCellToolbar->addAction("Auto Atlas", [&]() {
+
+
+		//	});
 		auto autogen = mCellToolbar->addAction("Auto Atlas", [&]() {
 			mAutoGen->exec();
 			if (mAutoGen->gen) {
@@ -170,12 +230,12 @@ namespace el
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mCellToolbar);
 	}
 
-	void AtlasEditor::setupOriginMode()
-	{
+	void AtlasEditor::setupOriginMode() {
 		mOriginToolbar = new QToolBar(this);
 		auto act = mOriginToolbar->addAction("Set Ghost", [&]() {
 			mGhostDialog->exec();
 			if (mGhostDialog->confirmed()) {
+				//cout << "confirmed" << endl;
 				mOriginView->setGhost(mGhostDialog->data());
 			}
 		});
@@ -225,9 +285,12 @@ namespace el
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mOriginToolbar);
 	}
 
-	void AtlasEditor::setupClipMode()
-	{
+	void AtlasEditor::setupClipMode() {
 		mClipsToolbar = new QToolBar(this);
+		QLabel* label = new QLabel("  FPS  ", mClipsToolbar);
+		QSpinBox* box = new QSpinBox(mClipsToolbar);
+		box->setMaximum(999);
+
 		mClipsToolbar->addAction("Add Clip", [&]() {
 			mClipsWidget->addClip();
 		});
@@ -237,6 +300,10 @@ namespace el
 		mClipsToolbar->addAction("Add Frame", [&]() {
 			mClipsWidget->addFrame();
 		});
+		
+		mClipsToolbar->addSeparator();
+		mClipsToolbar->addWidget(label);
+		mClipsToolbar->addWidget(box);
 
 		mClipsWidget = new ClipsWidget(this);
 		mClipsWidget->setMinimumWidth(750);
@@ -247,7 +314,13 @@ namespace el
 
 		mClipsTimer = new QTimer(this);
 		connect(mClipsTimer, &QTimer::timeout, mClipsWidget, &ClipsWidget::loop);
-		mClipsTimer->start(1000.0f / 12.0f);
+		mClipsTimer->start(1000.0f / 30.0f);
+		box->setValue(30.0f);
+
+		connect(box, &QSpinBox::valueChanged, [&](int value) {
+			mClipsTimer->stop();
+			mClipsTimer->start(1000.0f / value);
+			});
 
 		addToolBar(Qt::ToolBarArea::TopToolBarArea, mClipsToolbar);
 	}
@@ -331,6 +404,9 @@ namespace el
 			case ViewMode::CELL:
 				mCellsWidget->onKeyPress(e);
 				break;
+			case ViewMode::ORIGIN:
+				mOriginView->onKeyPress(e);
+				break;
 			case ViewMode::CLIP:
 				mClipsWidget->onKeyPress(e);
 				break;
@@ -343,6 +419,9 @@ namespace el
 			switch (mViewMode) {
 			case ViewMode::CELL:
 				mCellsWidget->onKeyRelease(e);
+				break;
+			case ViewMode::ORIGIN:
+				mOriginView->onKeyRelease(e);
 				break;
 			case ViewMode::CLIP:
 				mClipsWidget->onKeyRelease(e);

@@ -83,7 +83,7 @@ namespace el
 
 		AtlasAutoGenerator* mAutoGen;
 		ElangAtlasGhostDialog* mGhostDialog;
-		QComboBox* mTextureBox;
+		QComboBox* mTextureBox, *mAtlasBox;
 
 		ViewMode mViewMode;
 		bool mAcceptClose;

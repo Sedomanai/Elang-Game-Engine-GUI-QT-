@@ -67,8 +67,7 @@ namespace el
 		});
 	}
 
-	void QElangTextureWidget::safeCreateObjects()
-	{
+	void QElangTextureWidget::safeCreateObjects() {
 		ui.view->makeCurrent();
 		if (!mMainCam) {
 			mMainCam = gProject->makeSub<EditorCamera>();
