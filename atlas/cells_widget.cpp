@@ -1,42 +1,51 @@
+#include <elqtpch.h>
 #include "cells_widget.h"
-#include <qmenu.h>
-#include <qlineedit.h>
 
+#include <tools/cell.h>
+#include <tools/texture.h>
+#include <tools/atlas.h>
+#include <tools/controls.h>
+#include <tools/painter.h>
+#include <tools/material.h>
+#include <common/algorithm.h>
+#include <apparatus/ui.h>
 #include "../elqt/color_code.h"
 
 namespace el
 {
-	CellsWidget::CellsWidget(QWidget* parent) : 
-		mState(CellsWidget::SNONE), QElangPaletteWidget(parent), mSuppressSelect(false), mAlphaCut(10), mCtrl(false)
-	{
+
+	CellsWidget::CellsWidget(QWidget* parent) :
+		mState(CellsWidget::eSNone), QElangPaletteWidget(parent), mSuppressSelect(false), mAlphaCut(10) {
 		ui.view->sig_Start.connect([&]() {
 			ui.view->makeCurrent();
 			connectMouseInput();
-			connectObserver<CellHolder>(mSelects);
-		});
+			});
 
 		ui.view->sig_Paint.connect([&]() {
-			if (gGUI.open()) {
-
+			if (mAtlas && mAtlas.has<AssetLoaded>()) {
 				color8 c = selectColoring();
-				for (obj<CellHolder> holder : mSelects) {
-					c.a = 255;
-					mHighlighter->line.batchAABB(holder->rect, c, 0.0f);
-					c.a = gEditorColor.cellFillAlpha;
-					mHighlighter->fill.batchAABB(holder->rect, c, 0.0f);
+				auto& cells = mAtlas.get<AtlasMeta>().cellorder;
+				for (asset<AtlasSelectedCell> selected : cells) {
+					if (selected) {
+						auto& holder = selected.get<CellHolder>();
+						c.a = 255;
+						mHighlighter->line.batchAABB(holder.rect, c, 0.0f);
+						c.a = gEditorColor.cellFillAlpha;
+						mHighlighter->fill.batchAABB(holder.rect, c, 0.0f);
+					}
 				}
 
 				switch (mState) {
-				case SELECTING:
-					if (mCtrl)
-						mHighlighter->line.batchAABB(mSelectRect, gEditorColor.createRect, -10.0f);
-					else 
-						mHighlighter->line.batchAABB(mSelectRect, gEditorColor.selectRect, -10.0f);
-					break;
+					case eSelecting:
+						if (QApplication::queryKeyboardModifiers() & Qt::ControlModifier)
+							mHighlighter->line.batchAABB(mSelectRect, gEditorColor.createRect, -10.0f);
+						else
+							mHighlighter->line.batchAABB(mSelectRect, gEditorColor.selectRect, -10.0f);
+						break;
 				}
 				mHighlighter->draw();
 			}
-		});
+			});
 
 		connectList();
 	}
@@ -46,266 +55,349 @@ namespace el
 			findCursorState();
 			ui.view->update();
 		}
-		if (e->key() == Qt::Key::Key_Control) {
-			mCtrl = true;
+		if (e->key() == Qt::Key::Key_Space) {
 			findCursorState();
 			ui.view->update();
 		}
 	}
 
 	void CellsWidget::onKeyRelease(QKeyEvent* e) {
-		if (e->key() == Qt::Key::Key_Alt) {
+		if (e->key() == Qt::Key::Key_Shift) {
 			findCursorState();
 			ui.view->update();
 		}
 		if (e->key() == Qt::Key::Key_Control) {
-			mCtrl = false;
 			findCursorState();
 			ui.view->update();
 		}
 	}
 
 	color8 CellsWidget::selectColoring() {
-		if (mTempCursor == Qt::ArrowCursor)
+		if (mTempCursor == Qt::ArrowCursor || mTempCursor == Qt::SizeAllCursor)
 			return gEditorColor.cellHovered;
 		if (mTempCursor == Qt::OpenHandCursor)
 			return gEditorColor.cellOpenHanded;
 		else if (mTempCursor == Qt::ClosedHandCursor)
 			return gEditorColor.cellShadow;
 		else {
-			if (mState == SNONE)
+			if (mState == eSNone)
 				return gEditorColor.cellSizing;
 			else
 				return gEditorColor.cellShadow;
 		}
 	}
 
-	void CellsWidget::autoGenCells(uint sortorder, uint target_margin) {
-		if (gGUI.open() && mTexture) {
-			//ui.view->bindStage(); //TODO: investigate why this is necessary
-
-			safeClearSelection();
-			mTexture->autoGenerateAtlas(mTexture, mAlphaCut);
-			sortCells(sortorder, target_margin);
-			recreateCellHoldersFromAtlas();
-			recreateList();
-			redrawAllCellHolders();
+	void CellsWidget::autoNewGenAtlas(asset<Atlas> atlas, uint sortorder, uint target_margin) {
+		if (mMaterial && mMaterial->hasTexture() && atlas && atlas.has<AtlasMeta>() && atlas.has<AssetData>()) {
+			mMaterial->textures[0]->autoGenerateAtlas(atlas, mAlphaCut);
+			mAtlas = atlas;
+			sortAtlasOnNewGen(sortorder, target_margin);
+			updateAtlas(atlas);
 			renameAll();
 		}
 	}
 
 	void CellsWidget::renameAll() {
 		auto& cells = *gAtlsUtil.cellList;
-		mTexture->atlas->cells.clear();
-		auto name = gProject->atlases[mTexture->atlas];
+		mAtlas->cells.clear();
 
-		for (auto i = 0; i < cells.count(); i++) {
+		auto& meta = mAtlas.get<AtlasMeta>();
+		meta.cellnames.clear();
+
+		auto name = mAtlas.get<AssetData>().filePath.stem().generic_u8string();
+
+
+		auto& order = meta.cellorder;
+
+		for (auto i = 0; i < order.size(); i++) {
 			auto rname = name + "_" + std::to_string(i);
-			CellItem* it = reinterpret_cast<CellItem*>(cells.item(i));
-			it->setText(QString::fromUtf8(rname));
-			mTexture->atlas->cells.emplace(rname, it->holder->cell);
+
+			auto data = asset<SubAssetData>(meta.cellorder[i]);
+			data->name = rname;
+
+			auto& item = data.get<CellItem*>();
+			item->setText(QString::fromUtf8(rname));
+
+			mAtlas->cells.emplace(rname, data);
+			meta.cellnames.emplace(data, name);
 		}
 	}
 
-	//TODO: create alignment ?
-	void CellsWidget::sortCells(uint sortorder, uint target_margin) {
-		auto&& cv = mTexture->atlas->linearCells();
+	void CellsWidget::sortAtlasOnNewGen(uint sortorder, uint target_margin) {
+		assert(mAtlas);
+		assert(mAtlas.has<AtlasMeta>());
 
-		std::sort(cv.begin(), cv.end(), [&](asset<Cell> lhs, asset<Cell> rhs) ->bool {
+		auto& meta = mAtlas.get<AtlasMeta>();
+		auto& order = meta.cellorder;
+
+		std::sort(order.begin(), order.end(), [&](asset<Cell> lhs, asset<Cell> rhs) ->bool {
 			bool ret = false;
 			float margin;
 
-			auto lhori = lhs->uvUp;
-			auto rhori = rhs->uvUp;
-			auto lverti = lhs->uvLeft;
-			auto rverti = rhs->uvLeft;
+			auto lverti = lhs->uvUp;
+			auto rverti = rhs->uvUp;
+			auto lhori = lhs->uvLeft;
+			auto rhori = rhs->uvLeft;
 
 			if (sortorder == 0) {
-				margin = abs(lhori - rhori) * mTexture->height();
-				ret = (margin < target_margin) ? (lverti > rverti) : (lhori > rhori);
-			}
-			else {
-				margin = abs(lverti - rverti) * mTexture->width();
-				ret = (margin < target_margin) ? (lhori < rhori) : (lverti > rverti);
+				margin = abs(lverti - rverti) * meta.height;
+				ret = (margin < target_margin) ? (lhori < rhori) : (lverti < rverti);
+			} else {
+				//margin = abs(lhori - rhori) * meta.width;
+				//ret = (margin < target_margin) ? (lhori < rhori) : (lverti > rverti);
 			}
 			return ret;
-		});
+			});
 
-		for (sizet i = 0; i < cv.size(); i++)
-			cv[i]->index = i;
+		for (sizet i = 0; i < order.size(); i++)
+			asset<SubAssetData>(order[i])->index = i;
+	}
+
+	void CellsWidget::reorderCellsAccordingToList() {
+		if (mAtlas) {
+			auto& meta = mAtlas.get<AtlasMeta>();
+			meta.cellorder.clear();
+
+			auto& list = gAtlsUtil.cellList;
+			for (auto i = 0; i < list->count(); i++) {
+				auto item = reinterpret_cast<CellItem*>(list->item(i));
+				meta.cellorder.emplace_back(item->holder);
+				item->holder.get<SubAssetData>().index = i;
+			}
+		}
+	}
+
+	void CellsWidget::updateAtlas(asset<Atlas> atlas) {
+		mAtlas = atlas;
+		safeClearSelection();
+		recreateCellHoldersFromAtlas();
+		recreateList();
+		rebatchAllCellHolders();
+		ui.view->update();
+	}
+
+	void CellsWidget::loop() {
+		if (isActiveWindow() && mMainCam) {
+			if (gMouse.state(1) == eInput::Hold) {
+				mMainCamTarget.move(vec3(mMoveDelta * 0.5, 0));
+				syncCameraTarget();
+				tweenCameraInput(mMainCamTween, *mMainCam, mMainCamTarget);
+				//snapCamera();
+				ui.view->update();
+			}
+			if (gMouse.state(1) == eInput::Hold || gMouse.wheel() != 0.0f) {
+				updateAllHolderCheck();
+			}
+			if (mMainCamTween.progress() != 1.0f) {
+				mMainCamTween.step(1);
+				onMouseMove();
+				ui.view->update();
+			}
+		}
 	}
 
 	void CellsWidget::safeClearSelection() {
 		mSuppressSelect = true;
 		gAtlsUtil.cellList->clearSelection();
 		gAtlsUtil.cellList->setCurrentItem(0);
-		mSelects.clear();
+		gProject.clear<AtlasSelectedCell>();
 		mSuppressSelect = false;
 	}
 
 	void CellsWidget::connectMouseInput() {
 		ui.view->sig_MousePress.connect([&]() {
-			if (gGUI.open() && mTexture && mTexture->atlas && gMouse.state(0) == eInput::ONCE) {
-				findCursorState();
+			findCursorState();
+			mCamPivot = mMainCam->position();
+			if (mAtlas && gMouse.state(0) == eInput::Once) {
 				if (QApplication::keyboardModifiers() & Qt::AltModifier) {
-					if (mCursorState == MOVE)
-						mState = MOVING;
-					else if (mCursorState > MOVE) {
-						mState = SIZING;
+					if (mCursorState == eMove) {
+						mState = eMoving;
+						gProject.clear<AtlasMovingCell>();
+						for (asset<CellHolder> holder : gProject.view<AtlasSelectedCell>()) {
+							assert(holder);
+							gProject.emplace<AtlasMovingCell>(holder, holder->rect);
+							mGrabPos = *mMainCam * gMouse.currentPosition();;
+						}
+					} else if (mCursorState > eMove) {
+						mState = eSizing;
 					}
 				} else {
 					auto pos = *mMainCam * gMouse.currentPosition();
-					mState = SELECTING;
+					mState = eSelecting;
 					mSelectRect.l = pos.x;
 					mSelectRect.r = pos.x;
 					mSelectRect.t = pos.y;
 					mSelectRect.b = pos.y;
 				}
 
-				findCursorState();
 				ui.view->update();
 			}
-		});
+			findCursorState();
+			});
 
-		ui.view->sig_MouseMove.connect([&]() {
-			if (gGUI.open()) {
-				findCursorState();
-
-				if (gMouse.state(0) == eInput::HOLD) {
-					auto pos = *mMainCam * gMouse.currentPosition();
-					auto delta = *mMainCam * gMouse.deltaPosition();
-					delta -= mMainCam->position();
-
-					switch (mState) {
-					case SELECTING:
-						mSelectRect.r = pos.x;
-						mSelectRect.t = pos.y;
-						ui.view->update();
-						break;
-
-					case MOVING:
-						for (obj<CellHolder> holder : mSelects) {
-							holder->rect.move(delta);
-						}
-						ui.view->update();
-						break;
-
-					case SIZING:
-						if (mSelects.size() == 1) {
-							for (obj<CellHolder> holder : mSelects) {
-								if ((mCursorState & LEFT) == LEFT) {
-									holder->rect.l = pos.x;
-								}
-								else if ((mCursorState & RIGHT) == RIGHT) {
-									holder->rect.r = pos.x;
-								}
-								if ((mCursorState & BOTTOM) == BOTTOM) {
-									holder->rect.b = pos.y;
-								}
-								else if ((mCursorState & TOP) == TOP) {
-									holder->rect.t = pos.y;
-								}
-							}
-							ui.view->update();
-						}
-						break;
-					}
-				}
-			}
-		});
+		ui.view->sig_MouseMove.connect(this, &CellsWidget::onMouseMove);
 
 		ui.view->sig_MouseRelease.connect([&]() {
-			if (gGUI.open() && gMouse.state(0) == eInput::LIFT) {
-				switch (mState) {
-				case SIZING:
-					if (mSelects.size() == 1) {
-						for (obj<CellHolder> holder : mSelects) {
-							assert(holder);
-							holder->rect.normalize();
-							holder->rect.roundCorners();
-							holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height(), holder->cell->index);
-							redrawAllCellHolders();
-						}
-					}
-					break;
-				case MOVING:
-					assert(mSelects.size() > 0);
-					for (obj<CellHolder> holder : mSelects) {
-						assert(holder);
-						holder->rect.roundCorners();
-						holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height(), holder->cell->index);
-					} redrawAllCellHolders();
-				break;
-				case SELECTING:
-					if (mCtrl) {
-						mSelectRect.normalize();
-						mSelectRect.roundCorners();
-						createNamedCell();
-						redrawAllCellHolders();
-					} else {
-						mSuppressSelect = true;
-						gAtlsUtil.cellList->clearSelection();
-						mSelectRect.normalize();
+			findCursorState();
+			if (mAtlas && gMouse.state(0) == eInput::Lift) {
+				auto selected = gProject.view<AtlasSelectedCell>();
+				auto& meta = mAtlas.get<AtlasMeta>();
 
-						mSelects.clear();
-						for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-							if (holder->rect.intersects(mSelectRect)) {
-								holder.update();
-								assert(holder.has<CellItem*>());
-								holder.get<CellItem*>()->setSelected(true);
+				switch (mState) {
+					case eSizing:
+						if (selected.size() == 1) {
+							for (asset<CellHolder> holder : selected) {
+								assert(holder);
+								holder->rect.normalize();
+								holder->rect.roundCorners();
+								holder->moldCellFromRect(holder, (int)meta.width, (int)meta.height);
+								rebatchAllCellHolders();
+								sig_Modified.invoke();
 							}
 						}
+						break;
+					case eMoving:
+						assert(selected.size() > 0);
+						for (asset<CellHolder> holder : selected) {
+							assert(holder && holder.has<AtlasMovingCell>());
+							holder->rect.roundCorners();
+							holder->moldCellFromRect(holder, (int)meta.width, (int)meta.height);
+						} rebatchAllCellHolders();
+						gProject.clear<AtlasMovingCell>();
+						sig_Modified.invoke();
+						break;
+					case eSelecting:
+						if (QApplication::queryKeyboardModifiers() & Qt::ControlModifier) {
+							mSelectRect.normalize();
+							mSelectRect.roundCorners();
+							createNamedCell();
+							rebatchAllCellHolders();
+							sig_Modified.invoke();
+						} else {
+							mSuppressSelect = true;
+							gAtlsUtil.cellList->clearSelection();
+							mSelectRect.normalize();
 
-						if (mSelects.size() > 0) {
-							gAtlsUtil.cellList->setCurrentItem(obj<CellHolder>(mSelects.data()[0]).get<CellItem*>());
+							gProject.clear<AtlasSelectedCell>();
+							auto& meta = mAtlas.get<AtlasMeta>();
+							for (asset<CellHolder> holder : meta.cellorder) {
+								if (holder->rect.intersects(mSelectRect)) {
+									gProject.get_or_emplace<AtlasSelectedCell>(holder);
+									assert(holder.has<CellItem*>());
+									holder.get<CellItem*>()->setSelected(true);
+								}
+							}
+
+							if (selected.size() > 0) {
+								gAtlsUtil.cellList->setCurrentItem(asset<CellHolder>(selected[0]).get<CellItem*>());
+							}
+							mSuppressSelect = false;
 						}
-						mSuppressSelect = false;
-					}
-					break;
+						break;
 				}
 
-				mState = SNONE;
-				findCursorState();
+				mState = eSNone;
 				ui.view->update();
 			}
-		});
+			findCursorState();
+			});
+	}
+
+	void CellsWidget::onMouseMove() {
+		findCursorState();
+
+		if (mAtlas && gMouse.state(0) == eInput::Hold) {
+			auto pos = *mMainCam * gMouse.currentPosition();
+			auto delta = pos - mGrabPos;
+			auto selected = gProject.view<AtlasSelectedCell>();
+
+			switch (mState) {
+				case eSelecting:
+					mSelectRect.r = pos.x;
+					mSelectRect.t = pos.y;
+					ui.view->update();
+					break;
+
+				case eMoving:
+					for (asset<CellHolder> holder : selected) {
+						assert(holder.has<AtlasMovingCell>());
+						holder->rect = holder.get<AtlasMovingCell>().capturedRect;
+						holder->rect.move(delta);
+					}
+					ui.view->update();
+					break;
+
+				case eSizing:
+					if (selected.size() == 1) {
+						for (asset<CellHolder> holder : selected) {
+							if ((mCursorState & eLeft) == eLeft) {
+								holder->rect.l = pos.x;
+							} else if ((mCursorState & eRight) == eRight) {
+								holder->rect.r = pos.x;
+							}
+							if ((mCursorState & eBottom) == eBottom) {
+								holder->rect.b = pos.y;
+							} else if ((mCursorState & eTop) == eTop) {
+								holder->rect.t = pos.y;
+							}
+						}
+						ui.view->update();
+					}
+					break;
+			}
+		}
 	}
 
 	void CellsWidget::deleteSelected() {
-		assert(mTexture && mTexture->atlas);
-		mSuppressSelect = true;
-		for (obj<CellHolder> holder : mSelects) {
-			deleteCell(holder);
-		} 
-		mSelects.clear();
-		mSuppressSelect = false;
-		redrawAllCellHolders();
-		ui.view->update();
+		auto selected = gProject.view<AtlasSelectedCell>();
+		if (selected.size() > 0) {
+			mSuppressSelect = true;
+			for (asset<CellHolder> holder : selected) {
+				deleteCell(holder);
+			}
+			gProject.clear<AtlasSelectedCell>();
+			mSuppressSelect = false;
+			reorderCellsAccordingToList();
+			rebatchAllCellHolders();
+			sig_Modified.invoke();
+			ui.view->update();
+		}
 	}
 
-	void CellsWidget::deleteCell(obj<CellHolder> holder) {
+	void CellsWidget::deleteCell(asset<CellHolder> holder) {
 		delete holder.get<CellItem*>();
-		mTexture->atlas->cells.erase(holder->cell);
-		holder->cell.destroy();
+		auto cell = holder.get<SubAssetData>();
+		mAtlas->cells.erase(cell.name);
+
+		auto& meta = mAtlas.get<AtlasMeta>();
+		meta.cellnames.erase(holder);
+
 		holder.destroy();
 	}
 
-	obj<CellHolder> CellsWidget::createCell(const string& name) {
-		assert(mTexture && mTexture->atlas);
+	asset<CellHolder> CellsWidget::createCell(const string& name) {
+		assert(mAtlas);
 		mSelectRect.roundCorners();
 		mSelectRect.normalize();
 		CellItem* item = new CellItem(gAtlsUtil.cellList);
-		auto holder = item->holder = gStage->make<CellHolder>(gProject->makeSub<Cell>(), mSelectRect);
+		item->setFlags(item->flags() | Qt::ItemIsEditable);
+
+		auto& meta = mAtlas.get<AtlasMeta>();
+
+		auto holder = item->holder = gProject.make<CellHolder>(mSelectRect, this);
+		holder
+			.add<SubAssetData>(meta.cellorder.size(), name, mAtlas)
+			.add<CellMeta>();
+		mAtlas->addCell(holder, meta);
 		holder.add<CellItem*>(item);
-		holder.add<Button>(this);
-		holder->moldCellFromRect((int)mTexture->width(), (int)mTexture->height(), gAtlsUtil.cellList->count());
-		mTexture->atlas->cells.emplace(name, holder->cell);
+		holder->moldCellFromRect(holder, (int)meta.width, (int)meta.height);
 		item->setText(QString::fromUtf8(name));
 
 		mSuppressSelect = true;
 		gAtlsUtil.cellList->addItem(item);
 		gAtlsUtil.cellList->clearSelection();
-		mSelects.clear();
+
+		gProject.clear<AtlasSelectedCell>();
 		item->setSelected(true);
 		gAtlsUtil.cellList->setCurrentItem(item);
 		mSuppressSelect = false;
@@ -317,7 +409,7 @@ namespace el
 	void CellsWidget::createNamedCell() {
 		createCell(
 			gAtlsUtil.cellList->getNoneConflictingName(
-				QString::fromStdString(gProject->atlases[mTexture->atlas]), false
+				QString::fromStdString(mAtlas.get<AssetData>().filePath.stem().generic_u8string()), false
 			).toStdString()
 		);
 	}
@@ -325,15 +417,17 @@ namespace el
 	void CellsWidget::autoCreateCell() {
 		static vector<int> valids;
 
-		if (mTexture && mTexture->atlas) {
+		if (mAtlas && mMaterial && mMaterial->hasTexture()) {
+			auto tex = mMaterial->textures[0];
+
 			aabb rect;
 			bool made = false;
 
 			vec2 mousepix = (*mMainCam) * gMouse.currentPosition();
 
-			uint pixcount = mTexture->width() * mTexture->height();
+			uint pixcount = tex->width() * tex->height();
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, mTexture->id());
+			glBindTexture(GL_TEXTURE_2D, tex->id());
 
 			auto pixels = (unsigned char*)malloc(pixcount);
 			glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -348,9 +442,9 @@ namespace el
 			mousepix.y *= -1;
 			if (0 < mousepix.x &&
 				0 < mousepix.y &&
-				mousepix.x < mTexture->width() &&
-				mousepix.y < mTexture->height()) {
-				int start = mousepix.x + mousepix.y * mTexture->width();
+				mousepix.x < tex->width() &&
+				mousepix.y < tex->height()) {
+				int start = mousepix.x + mousepix.y * tex->width();
 				if (pixels[start] > mAlphaCut) {
 					valids.clear();
 					valids.push_back(start);
@@ -361,13 +455,13 @@ namespace el
 						for (; reader < rend; reader++) {
 							auto curr = valids[reader];
 							bool notop =
-								((curr < mTexture->width()) || (pixels[curr - mTexture->width()] <= mAlphaCut) || visited[curr - mTexture->width()] == true);
+								((curr < tex->width()) || (pixels[curr - tex->width()] <= mAlphaCut) || visited[curr - tex->width()] == true);
 							bool nobottom =
-								(curr > (mTexture->width() * (mTexture->height() - 1)) || (pixels[curr + mTexture->width()] <= mAlphaCut) || (visited[curr + mTexture->width()] == true));
+								(curr > (tex->width() * (tex->height() - 1)) || (pixels[curr + tex->width()] <= mAlphaCut) || (visited[curr + tex->width()] == true));
 							bool noleft =
-								((curr % mTexture->width() == 0) || (pixels[curr - 1] <= mAlphaCut) || (visited[curr - 1] == true));
+								((curr % tex->width() == 0) || (pixels[curr - 1] <= mAlphaCut) || (visited[curr - 1] == true));
 							bool noright =
-								((curr % mTexture->width() == (mTexture->width() - 1)) || (pixels[curr + 1] <= mAlphaCut) || (visited[curr + 1] == true));
+								((curr % tex->width() == (tex->width() - 1)) || (pixels[curr + 1] <= mAlphaCut) || (visited[curr + 1] == true));
 							/*bool notopleft =
 								((curr < mTexWidth) || (pixels[curr - mTexWidth] <= 25) || visited[curr - mTexWidth] == true);
 							bool notopright =
@@ -378,11 +472,11 @@ namespace el
 								((curr % mTexWidth == (mTexWidth - 1)) || (pixels[curr + 1] <= 25) || (visited[curr + 1] == true));*/
 
 							if (!notop) {
-								valids.push_back(curr - mTexture->width());
-								visited[curr - mTexture->width()] = true;
+								valids.push_back(curr - tex->width());
+								visited[curr - tex->width()] = true;
 							} if (!nobottom) {
-								valids.push_back(curr + mTexture->width());
-								visited[curr + mTexture->width()] = true;
+								valids.push_back(curr + tex->width());
+								visited[curr + tex->width()] = true;
 							} if (!noleft) {
 								valids.push_back(curr - 1);
 								visited[curr - 1] = true;
@@ -403,10 +497,10 @@ namespace el
 					int it = -intmax;
 					for (uint i = 0; i < valids.size(); i++) {
 						auto& s = valids[i];
-						il = min(il, (s % (int)mTexture->width()));
-						ib = min(ib, (s / (int)mTexture->width()));
-						ir = max(ir, (s % (int)mTexture->width()) + 1);
-						it = max(it, (s / (int)mTexture->width()) + 1);
+						il = min(il, (s % (int)tex->width()));
+						ib = min(ib, (s / (int)tex->width()));
+						ir = max(ir, (s % (int)tex->width()) + 1);
+						it = max(it, (s / (int)tex->width()) + 1);
 					}
 
 					rect = aabb(il, -it, ir, -ib);
@@ -418,57 +512,68 @@ namespace el
 			if (made) {
 				mSelectRect = Box(rect.l, rect.b, rect.r, rect.t);
 				createNamedCell();
-				redrawAllCellHolders();
+				rebatchAllCellHolders();
+				sig_Modified.invoke();
 				ui.view->update();
 			}
-
-			//recreateList();
 		}
 	}
 
 	void CellsWidget::connectList() {
 		connect(gAtlsUtil.cellList, &QListExtension::itemSelectionChanged, [&]() {
-			if (!gGUI.open())
-				return;
-
-			if (isVisible() && !mSuppressSelect) {
-				assert(mTexture && mTexture->atlas);
-				mSelects.clear();
+			if (isVisible() && !mSuppressSelect && mAtlas) {
+				gProject.clear<AtlasSelectedCell>();
 				for (auto i = 0; i < gAtlsUtil.cellList->count(); i++) {
 					CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(i));
 					if (item->isSelected())
-						item->holder.update();
-				}
-
-				ui.view->update();
+						gProject.get_or_emplace<AtlasSelectedCell>(item->holder);
+				} ui.view->update();
 			}
-		});
+			});
+
+		connect(gAtlsUtil.cellList->model(), &QAbstractItemModel::rowsMoved, [&]() {
+			if (isVisible() && !mSuppressSelect && mAtlas) {
+				reorderCellsAccordingToList();
+				sig_Modified.invoke();
+			}
+			});
 
 		connect(gAtlsUtil.cellList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
-			if (isVisible()) {
+			if (isVisible() && mAtlas && mAtlas.has<AssetLoaded>()) {
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+				auto& data = item->holder.get<SubAssetData>();
 				auto name = gAtlsUtil.cellList->
 					getNoneConflictingName(reinterpret_cast<QLineEdit*>(pLineEdit)->text()).toStdString();
-				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(gAtlsUtil.cellList->currentRow()));
-				assert(mTexture && mTexture->atlas);
-				mTexture->atlas->cells.erase(item->text().toStdString());
-				mTexture->atlas->cells.emplace(name, item->holder->cell);
-				item->setText(QString::fromStdString(name));
+
+				assert(mAtlas->cells.contains(data.name));
+				if (data.name != name && mAtlas->cells.contains(data.name)) {
+					mAtlas->cells.erase(data.name);
+					mAtlas->cells[name] = item->holder;
+					mAtlas.get<AtlasMeta>().cellnames[item->holder] = name;
+					item->setText(QString::fromStdString(name));
+					data.name = name;
+					sig_Modified.invoke();
+				}
 			}
-		});
+			});
 	}
 
 	void CellsWidget::combineCells() {
-		assert(mTexture && mTexture->atlas);
-		if (mSelects.size() > 1) {
-			string name = obj<CellHolder>(mSelects.data()[0]).get<CellItem*>()->text().toStdString();
+		auto selected = gProject.view<AtlasSelectedCell>();
+		if (selected.size() > 1) {
+			auto& meta = mAtlas.get<AtlasMeta>();
+
+			auto& item = *asset<CellItem*>(selected[0]);
+			string name = item->text().toStdString();
 			int l = std::numeric_limits<int>::max();
 			int b = std::numeric_limits<int>::max();
 			int r = std::numeric_limits<int>::min();
 			int t = std::numeric_limits<int>::min();
+
 			mSuppressSelect = true;
 			gAtlsUtil.cellList->clearSelection();
 			sizet i = 0;
-			for (obj<CellHolder> holder : mSelects) {
+			for (asset<CellHolder> holder : selected) {
 				l = min(l, holder->rect.l);
 				b = min(b, holder->rect.b);
 				r = max(r, holder->rect.r);
@@ -478,74 +583,36 @@ namespace el
 				i++;
 			}
 			mSuppressSelect = false;
-			auto first = obj<CellHolder>(mSelects.data()[0]);
+
+			auto first = asset<CellHolder>(selected[0]);
 			first->rect = Box(l, b, r, t);
-			first->moldCellFromRect(mTexture->width(), mTexture->height(), first->cell->index);
-			mSelects.clear();
+			first->moldCellFromRect(first, (int)meta.width, (int)meta.height);
+			gProject.clear<AtlasSelectedCell>();
 			gAtlsUtil.cellList->setCurrentItem(first.get<CellItem*>());
-			redrawAllCellHolders();
+			reorderCellsAccordingToList();
+			rebatchAllCellHolders();
+			sig_Modified.invoke();
 			ui.view->update();
 		}
 	}
 
-
-	/*
-
-	void CellsWidget::connectList() {
-		connect(gCellList, &QWidget::customContextMenuRequested, [=](const QPoint& pos) {
-			if (isVisible()) {
-				QMenu contextMenu(tr("Context menu"), this);
-				auto CREATE_ACT = contextMenu.addAction("Create");
-				auto DELETE_ACT = contextMenu.addAction("Delete");
-
-				auto selected = contextMenu.exec(gCellList->mapToGlobal(pos));
-				if (selected) {
-					if (selected == CREATE_ACT) {
-
-					} else if (selected == DELETE_ACT) {
-
-					}
-				}
-			}
-		});
-	}
-	void CellsWidget::importAtlasBegin() {
-		deleteAll();
-	}
-
-	void CellsWidget::importAtlasEnd() {
-		recreateList();
-		update();
-	}
-
-	/**/
-
-
-	void CellsWidget::onTextureUpdate() {
-		assert(mTexture);
-		safeClearSelection();
-		recreateCellHoldersFromAtlas();
-		recreateList();
-		redrawAllCellHolders();
-	}
-
 	void CellsWidget::recreateList() {
-		assert(gGUI.open());
-
 		auto& list = *gAtlsUtil.cellList;
 		for (auto i = 0; i < list.count(); i++) {
 			delete list.item(i);
 		} list.clear();
 
-		if (mTexture && mTexture->atlas) {
-			auto& cells = mTexture->atlas->cells;
+		if (mAtlas) {
+			auto& meta = mAtlas.get<AtlasMeta>();
+			auto& cells = meta.cellorder;
+
 			mSuppressSelect = true;
-			for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
+			for (asset<SubAssetData> cell : cells) {
 				CellItem* item = new CellItem(&list);
-				item->holder = holder;
-				assert(cells.contains(holder->cell));
-				item->setText(QString::fromUtf8(cells[holder->cell]));
-				holder.add<CellItem*>(item);
+				item->setFlags(item->flags() | Qt::ItemIsEditable);
+				item->holder = cell;
+				item->setText(QString::fromUtf8(cell->name));
+				gProject.emplace_or_replace<CellItem*>(cell, item);
 				list.addItem(item);
 			}
 			mSuppressSelect = false;
@@ -558,90 +625,128 @@ namespace el
 		list->setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
 		list->setDefaultDropAction(Qt::DropAction::MoveAction);
 		list->show();
+
+		auto curr = gProject.view<AtlasCurrentCell>();
+		if (curr.size() > 0) {
+			asset<CellHolder> holder = curr[0];
+			auto item = *asset<CellItem*>(holder);
+			holder.add<AtlasSelectedCell>();
+			mSuppressSelect = true;
+			item->setSelected(true);
+			mSuppressSelect = false;
+
+			mMainCamTarget.to(vec3(holder.get<CellHolder>().rect.center(), -1000.0f));
+			syncCameraTarget();
+			snapCamera();
+			syncScrollBarPositionToCam();
+			ui.view->update();
+		}
+
+		//if (mMainCam)
+		//	setCameraScale(gAtlsUtil.globalScale);
+		recreateCellHoldersFromAtlas(); //TODO: fix the entire workflow with CellHolder, do not attach holder to project assets themselves 
+		//		(Really makes things complicated when there can be multiple palettes open)
+		//		This method should be unnecessary here once it's done
 		show();
 	}
 
 	void CellsWidget::hideEditor() {
-		//mSelects.clear();
-		//gAtlsUtil.cellList->clearSelection();
 		gAtlsUtil.cellList->hide();
+
+		gProject.clear<AtlasCurrentCell>();
+		auto item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		if (item)
+			item->holder.add<AtlasCurrentCell>();
+		safeClearSelection();
+
+		//if (mMainCam)
+		//	gAtlsUtil.globalScale = mMainCam->scale().x;
 		hide();
 	}
 
 	void CellsWidget::findCursorState() {
-		assert(gGUI.open() && mTexture);
-		auto pos = *mMainCam * gMouse.currentPosition();
-		if (!mTexture->atlas) {
-			setCursor(Qt::ArrowCursor);
-			mCursorState = CursorState::NONE;
-			return;
-		}
+		if (mMaterial && mMaterial->hasTexture() && mMaterial->textures[0].has<AssetLoaded>()) {
 
-		if (mState == SNONE) {
-			mCursorState = CursorState::NONE;
-
-			bool hit = false; // = mSelects.size() > 0;
-			for (obj<CellHolder> holder : mSelects) {
-				if (holder->rect.contains(pos)); {
-					hit = true;
-					break;
-				}
-			}
-
-			if (hit) {
-				auto sx = mMainCam->scale().x;
-				if (mSelects.size() == 1) {
-					auto& rect = obj<CellHolder>(mSelects.data()[0])->rect;
-					if (rect.l > pos.x - 5.0f * sx)
-						mCursorState += CursorState::LEFT;
-					else if (rect.r < pos.x + 5.0f * sx)
-						mCursorState += CursorState::RIGHT;
-					if (rect.b > pos.y - 5.0f * sx)
-						mCursorState += CursorState::BOTTOM;
-					else if (rect.t < pos.y + 5.0f * sx)
-						mCursorState += CursorState::TOP;
-				}
-
-				if (mCursorState == 0)
-					mCursorState = CursorState::MOVE;
-			}
-
-			if (QApplication::queryKeyboardModifiers() & Qt::AltModifier) {
+			auto pos = *mMainCam * gMouse.currentPosition();
+			if (!mAtlas && mAtlas.has<AssetLoaded>()) {
 				mTempCursor = Qt::ArrowCursor;
-				if (mCursorState == CursorState::MOVE)
-					mTempCursor = Qt::OpenHandCursor;
+				mCursorState = CursorState::eNone;
+				return;
+			}
 
-				bool left = ((mCursorState & CursorState::LEFT) == CursorState::LEFT);
-				bool right = ((mCursorState & CursorState::RIGHT) == CursorState::RIGHT);
-				bool top = ((mCursorState & CursorState::TOP) == CursorState::TOP);
-				bool bottom = ((mCursorState & CursorState::BOTTOM) == CursorState::BOTTOM);
+			if (mState == eSNone) {
+				mCursorState = CursorState::eNone;
+				auto selected = gProject.view<AtlasSelectedCell>();
 
-				if (left || right) {
-					mTempCursor = Qt::SizeHorCursor;
+				auto sx = mMainCam->scale().x;
+				bool hit = false; // = mSelects.size() > 0;
+				for (asset<CellHolder> holder : selected) {
+					auto rect = holder->rect;
+					rect.expand(6.0f * sx, 6.0f * sx);
+					if (rect.contains(pos)) {
+						hit = true;
+						break;
+					}
 				}
-				if (top || bottom) {
-					if (mTempCursor == Qt::SizeHorCursor) {
-						if ((left && top) || (right && bottom)) {
-							mTempCursor = Qt::SizeFDiagCursor;
-						} else mTempCursor = Qt::SizeBDiagCursor;
-					} else
-						mTempCursor = Qt::SizeVerCursor;
-				}
-			} else mTempCursor = Qt::ArrowCursor;
-		}	
-		
-		if (mState == MOVING) {
-			mTempCursor = Qt::ClosedHandCursor;
-		} 
 
-		if (mTempCursor == Qt::ArrowCursor && mCtrl) {
-			mTempCursor == Qt::CrossCursor;
+				if (hit) {
+					if (selected.size() == 1) {
+						auto rect = asset<CellHolder>(selected[0])->rect;
+						rect.expand(6.0f * sx, 6.0f * sx);
+						if (rect.l > pos.x - 12.0f * sx)
+							mCursorState += CursorState::eLeft;
+						else if (rect.r < pos.x + 12.0f * sx)
+							mCursorState += CursorState::eRight;
+						if (rect.b > pos.y - 12.0f * sx)
+							mCursorState += CursorState::eBottom;
+						else if (rect.t < pos.y + 12.0f * sx)
+							mCursorState += CursorState::eTop;
+					}
+
+					if (mCursorState == 0)
+						mCursorState = CursorState::eMove;
+				} else if (gMouse.state(1) == eInput::Hold) {
+					mTempCursor = Qt::CursorShape::SizeAllCursor;
+				} else {
+					mTempCursor = Qt::ArrowCursor;
+				}
+
+				if (QApplication::queryKeyboardModifiers() & Qt::AltModifier) {
+					if (mCursorState == CursorState::eMove)
+						mTempCursor = Qt::OpenHandCursor;
+
+					bool left = ((mCursorState & CursorState::eLeft) == CursorState::eLeft);
+					bool right = ((mCursorState & CursorState::eRight) == CursorState::eRight);
+					bool top = ((mCursorState & CursorState::eTop) == CursorState::eTop);
+					bool bottom = ((mCursorState & CursorState::eBottom) == CursorState::eBottom);
+
+					if (left || right) {
+						mTempCursor = Qt::SizeHorCursor;
+					}
+					if (top || bottom) {
+						if (mTempCursor == Qt::SizeHorCursor) {
+							if ((left && top) || (right && bottom)) {
+								mTempCursor = Qt::SizeFDiagCursor;
+							} else mTempCursor = Qt::SizeBDiagCursor;
+						} else
+							mTempCursor = Qt::SizeVerCursor;
+					}
+				} else if (gMouse.state(1) == eInput::Hold) {
+					mTempCursor = Qt::CursorShape::SizeAllCursor;
+				} else {
+					mTempCursor = Qt::ArrowCursor;
+				}
+			}
+
+			if (mState == eMoving) {
+				mTempCursor = Qt::ClosedHandCursor;
+			}
+
+			if (mTempCursor == Qt::ArrowCursor && QApplication::queryKeyboardModifiers() & Qt::ControlModifier) {
+				mTempCursor == Qt::CrossCursor;
+			}
+
+			setCursor(mTempCursor);
 		}
-
-		
-		setCursor(mTempCursor);
 	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
 }

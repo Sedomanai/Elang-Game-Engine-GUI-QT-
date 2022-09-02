@@ -1,15 +1,63 @@
+#include <elqtpch.h>
 #include "clips_widget.h"
+
 #include "../elqt/color_code.h"
+
+#include "util.h"
+#include <tools/project.h>
+#include <common/algorithm.h>
+#include <common/line.h>
+#include <common/container.h>
+#include <tools/clip.h>
+#include <tools/painter.h>
+#include <tools/material.h>
+#include <tools/controls.h>
+#include <tools/texture.h>
+#include <tools/atlas.h>
+#include <apparatus/ui.h>
+#include <apparatus/asset_loader.h>
 
 namespace el
 {
 
-	ClipsWidget::ClipsWidget(QWidget* parent) : mPaused(false) {
+	ClipframeHolder::ClipframeHolder(
+		asset<Material> material, asset<Painter> painter, IButtonEvent* btnEvent
+	) : canvas(material, painter), button(btnEvent) {
+	}
+
+	void ClipframeHolder::reshape(asset<Clip> clip) {
+		assert(index < clip->cells.size());
+		auto cell = clip->cells.at(index);
+		if (cell)
+			canvas.recalc(cell);
+	}
+
+#define cReelFrameSize 100
+	void ClipframeHolder::reorder(sizet index_) {
+		index = index_;
+		canvas.bounds = aabb(index * cReelFrameSize, -cReelFrameSize, index * cReelFrameSize + cReelFrameSize, -15);
+	}
+
+
+	ClipsWidget::ClipsWidget(QWidget* parent) : mPaused(false), mClip(asset<Clip>()), mSuppressScroll(false), mSuppressSelect(false), mSuppressSpinbox(false) {
 		ui.setupUi(this);
 		ui.scroll->setEnabled(false);
 
-		ui.reel->setMouseTracking(true);
-		
+		connect(ui.scroll, &QScrollBar::valueChanged, [&](int value) {
+			if (mClip.clip() && !mSuppressScroll) {
+				mReelCamTarget.toX(value);
+				*mReelCam = mReelCamTarget;
+				setupCameraTween(mReelCamTween);
+				ui.reel->update();
+			}
+		});
+
+		connectView();
+		connectReel();
+	}
+
+
+	void ClipsWidget::connectView() {
 		ui.view->sig_Start.connect([&]() {
 			glClearColor(0.2f, 0.2f, 0.5f, 1.0f);
 			glEnable(GL_BLEND);
@@ -17,227 +65,254 @@ namespace el
 
 			safeCreateViewObjects();
 			connectList();
+			});
+		ui.view->sig_Paint.connect([&]() {
+			auto clip = mClip.clip();
+			if (clip && mClipSprite.cell() != asset<Cell>()) {
+				auto width = ui.view->width();
+				auto height = ui.view->height();
+				updateViewport(-width / 2, width / 2, -height / 2, height / 2);
+
+				mClipSprite.recalc(mClipPosition);
+				mClipSprite.batch();
+
+				mViewShapes->line.batchline(line(-1000000.0f, 0.0f, 1000000.0f, 0.0f), color8(255, 255, 255, 80));
+				mViewShapes->line.batchline(line(0.0f, -1000000.0f, 0.0f, 1000000.0f), color8(255, 255, 255, 80));
+				//aabb rect;
+				//mClipSprite.sync(rect);
+				//mViewShapes->line.batchAABB(rect, color8(255, 255, 255, 30));
+
+				mViewShapes->draw();
+				mViewPainter->paint();
+				ui.reel->update();
+			}
+			});
+
+		ui.view->sig_MousePress.connect([&]() {
+			if (gMouse.state(2) == eInput::Once) {
+				auto pos = *mViewCam * gMouse.currentPosition();
+				auto w = size().width() / 2.0f;
+				auto h = size().height() / 2.0f;
+				aabb trapbox(-w, -h, w, h);
+				trapbox.trap(pos);
+				mViewCamTarget.to(vec3(pos, -1000.0f));
+				tweenCameraInput(mViewCamTween, *mViewCam, mViewCamTarget);
+			}
 		});
 
+		ui.view->sig_ScrollWheel.connect([&]() {
+			auto clip = mClip.clip();
+			if (clip && zoomCamera(mViewCamTarget, false, 2.0f)) {
+				tweenCameraInput(mViewCamTween, *mViewCam, mViewCamTarget);
+			}
+		});
+	}
+
+	void ClipsWidget::connectReel() {
+		ui.reel->setMouseTracking(true);
+		
 		ui.reel->sig_Start.connect([&]() {
 			glClearColor(0.2f, 0.2f, 0.5f, 1.0f);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-
 			ui.speedBox->setEnabled(false);
 			ui.repeatBox->setEnabled(false);
 			connect(ui.speedBox, &QDoubleSpinBox::valueChanged, [&](double value) {
 				auto item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-				if (item && item->clip)
+				if (item && item->clip && mClip.clip()) {
 					item->clip->speed = (float)value;
+					if (!mSuppressSpinbox)
+						sig_Modified.invoke();
+				}
 			});
 			connect(ui.repeatBox, &QCheckBox::toggled, [&](bool value) {
 				auto item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-				if (item && item->clip)
+				if (item && item->clip && mClip.clip()) {
 					item->clip->repeat = (float)value;
-			});
+					if (!mSuppressSpinbox)
+						sig_Modified.invoke();
+				}
+				});
 			connect(ui.playButton, &QPushButton::clicked, [&]() {
-				if (mClipObj)
-					mClipObj.get<EditorProjectClipAnimation>().reset();
+				mClip.reset();
 				});
 
-			
-
 			safeCreateFrameObjects();
-		});
-
-		ui.view->sig_Paint.connect([&]() {
-			auto item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-
-			if (item && item->clip) {
-				if (mClipObj && mClipObj->cell() != asset<Cell>()) {
-					mClipObj->update(mClipObj);
-					mClipObj->batch();
-					mViewPainter->paint();
-					ui.reel->update();
-				}
-			}
-		});
-
-		ui.view->sig_ScrollWheel.connect([&]() {
-			float val = (5.0f / 6.0f);
-			val = pow(val, gMouse.wheel());
-			if (val != 0) {
-				val = (val > 0) ? val : -1.0f / val; // scroll up: 5/6, down: 6/5
-
-				auto mpos = *mViewCam * gMouse.currentPosition();
-				auto cpos = mViewCam->position();
-				auto delta = mpos - cpos;
-				delta *= (1 - val);
-
-				mViewCam->scale(vec3(val, val, 1));
-				//mViewCam->move(vec3(delta, 0));
-			}
-		});
+			});
 
 		ui.reel->sig_Paint.connect([&]() {
-			updateViewport(0, ui.reel->width(), -ui.reel->height(), 0);
+			auto clip = mClip.clip();
+			if (clip) {
+				updateViewport(0, ui.reel->width(), -ui.reel->height(), 0);
 
-			auto view = gStage->view<ClipframeHolder>();
+				auto view = gProject.view<ClipframeHolder>();
+				sizet i = 0;
+				for (asset<ClipframeHolder> holder : view) {
+					holder->canvas.batch();
+					auto x = i * cReelFrameSize + cReelFrameSize;
+					mReelShapes->line.batchline(line(x, 0, x, -cReelFrameSize), color8(255, 255, 255, 255));
+					i++;
+				}
+				mReelPainter->paint();
 
-			sizet i = 0;
-			for (obj<ClipframeHolder> holder : view) {
-				holder->canvas.batch();
-				auto x = i * cReelFrameSize + cReelFrameSize;
-				mReelShapes->line.batchline(line(x, 0, x, -cReelFrameSize), color8(255, 255, 255, 255));
-				i++;
-			}
-			mReelPainter->paint();
-
-			mReelShapes->line.batchline(line(0,-14, cReelFrameSize * i, -14), color8(255, 255, 255, 255));
-			mReelShapes->fill.batchAABB(aabb(0, -14, cReelFrameSize * i, 0), color8(255, 255, 255, 80));
-			if (mClipObj && mClipObj->cell() != asset<Cell>() && view.size() > 0) {
-				auto frame = mClipObj.get<EditorProjectClipAnimation>().frame();
-				auto rect = aabb(frame * cReelFrameSize, -cReelFrameSize, frame * cReelFrameSize + cReelFrameSize, 0);
-				rect.b = -14;
-				mReelShapes->line.batchAABB(rect, color8(255, 0, 0, 255));
-				mReelShapes->fill.batchAABB(rect, color8(255, 0, 0, 180));
-			}
-
-			if (mMoving) {
-				auto rect = mMoving->canvas.bounds;
-				auto color = gEditorColor.cellShadow;
-				mReelShapes->line.batchAABB(rect, color);
-				color.a = gEditorColor.cellFillAlpha;
-				mReelShapes->fill.batchAABB(rect, color);
-
-				if (mMovingSide > 0) {
-					int fx = mMovingSide * cReelFrameSize;
-					mReelShapes->line.batchline(line(fx, 0, fx, -cReelFrameSize), color8(255, 255, 255, 255));
-					fx += 1;
-					mReelShapes->line.batchline(line(fx, 0, fx, -cReelFrameSize), color8(255, 255, 255, 255));
+				mReelShapes->line.batchline(line(0, -14, cReelFrameSize * i, -14), color8(255, 255, 255, 255));
+				mReelShapes->fill.batchAABB(aabb(0, -14, cReelFrameSize * i, 0), color8(255, 255, 255, 80));
+				if (mClipSprite.cell() != asset<Cell>() && view.size() > 0) {
+					auto frame = mClip.frame();
+					auto rect = aabb(frame * cReelFrameSize, -cReelFrameSize, frame * cReelFrameSize + cReelFrameSize, 0);
+					rect.b = -14;
+					mReelShapes->line.batchAABB(rect, color8(255, 0, 0, 255));
+					mReelShapes->fill.batchAABB(rect, color8(255, 0, 0, 180));
 				}
 
-			} else if (mHovering) {
-				color8 color = gEditorColor.cellHovered;
+				for (asset<ClipframeHolder> holder : gProject.view<AtlasLastModifiedReelHolder>()) {
+					auto rect = holder->canvas.bounds;
+					auto color = gEditorColor.cell;
+					color.a = 80.0f;
+					mReelShapes->fill.batchAABB(rect, color);
+				}
 
-				switch (cursor().shape()) {
-				case Qt::ArrowCursor:
-					if (gMouse.state(1) == eInput::HOLD || gMouse.state(1) == eInput::ONCE) {
-						color = gEditorColor.cellSizing;
-					} else if (gMouse.state(0) == eInput::HOLD || gMouse.state(0) == eInput::ONCE) {
-						color = gEditorColor.cellSelected;
+				if (mMoving) {
+					auto rect = mMoving->canvas.bounds;
+					auto color = gEditorColor.cellShadow;
+					mReelShapes->line.batchAABB(rect, color);
+					color.a = gEditorColor.cellFillAlpha;
+					mReelShapes->fill.batchAABB(rect, color);
+
+					if (mMovingSide > 0) {
+						int fx = mMovingSide * cReelFrameSize;
+						mReelShapes->line.batchline(line(fx, 0, fx, -cReelFrameSize), color8(255, 0, 0, 255));
+						fx += 1;
+						mReelShapes->line.batchline(line(fx, 0, fx, -cReelFrameSize), color8(255, 0, 0, 255));
 					}
-					break;
-				case Qt::OpenHandCursor:
-					color = gEditorColor.cellOpenHanded;
-					break;
+
+				} else if (mHovering) {
+					color8 color = gEditorColor.cellHovered;
+
+					switch (cursor().shape()) {
+						case Qt::ArrowCursor:
+							if (gMouse.state(1) == eInput::Hold || gMouse.state(1) == eInput::Once) {
+								color = gEditorColor.cellSizing;
+							} else if (gMouse.state(0) == eInput::Hold || gMouse.state(0) == eInput::Once) {
+								color = gEditorColor.cellSelected;
+							}
+							break;
+						case Qt::OpenHandCursor:
+							color = gEditorColor.cellOpenHanded;
+							break;
+					}
+
+					auto rect = mHovering->canvas.bounds;
+					//rect.t = -15;
+					mReelShapes->line.batchAABB(rect, color);
+					color.a = gEditorColor.cellFillAlpha;
+					mReelShapes->fill.batchAABB(rect, color);
 				}
 
-				auto rect = mHovering->canvas.bounds;
-				//rect.t = -15;
-				mReelShapes->line.batchAABB(rect, color);
-				color.a = gEditorColor.cellFillAlpha;
-				mReelShapes->fill.batchAABB(rect, color);
+				mReelShapes->draw();
 			}
-
-			mReelShapes->draw();
 		});
 
 		ui.reel->sig_MousePress.connect([&]() {
 			updateAllCanvasButton();
-			});
+		});
+
 		ui.reel->sig_MouseRelease.connect([&]() {
 			updateAllCanvasButton();
-			if (mMoving && mMovingSide >= 0) {
-				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-				assert(item && item->clip);
-				auto clip = item->clip;
-				auto index = mMoving->index;
+			auto clip = mClip.clip();
+			if (clip) {
+				if (mMoving && mMovingSide >= 0) {
+					auto index = mMoving->index;
 
-				swapshift(*clip, index, mMovingSide);
-				recreateReel(clip);
-				mMoving = NullEntity;
+					el_vector::swapshift(clip->cells, index, mMovingSide);
+					recreateReel();
+					mMoving = NullEntity;
 
-				auto view = gStage->view<ClipframeHolder>();
-				mHovering = (index < view.size()) ? view[index] : NullEntity;
-			}
+					auto& view = mClip.clip()->cells;
+					mHovering = (index < view.size()) ? view[index] : NullEntity;
 
-			if (mRemovable) {
-				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-				assert(item && item->clip);
+					sig_Modified.invoke();
+				}
 
-				auto clip = item->clip;
-				auto index = mRemovable->index;
-				assert(index < clip->size());
+				if (mRemovable) {
+					auto index = mRemovable->index;
+					auto& frames = clip->cells;
+					assert(index < frames.size());
 
-				clip->erase(clip->begin() + index);
-				recreateReel(clip);
-				mRemovable = NullEntity;
+					frames.erase(frames.begin() + index);
+					recreateReel();
+					mRemovable = NullEntity;
 
-				auto view = gStage->view<ClipframeHolder>();
-				mHovering = (index < view.size()) ? view[index] : NullEntity;
-			}
-		});
-		ui.reel->sig_MouseMove.connect([&]() {
-			mHovering = NullEntity; 
-			setCursor(Qt::ArrowCursor);
-			updateAllCanvasButton();
+					auto& view = mClip.clip()->cells;
+					mHovering = (index < view.size()) ? view[index] : NullEntity;
 
-			if (mMoving) {
-				int fx = round(gMouse.currentPosition().x + ui.reel->width() / 2.0f + mReelCam->position().x);
-				fx = max(0, fx);
-				int trail = fx % cReelFrameSize;
-				auto max = gStage->view<ClipframeHolder>().size();
-
-
-				mMovingSide = 0;
-				if (fx >= max * cReelFrameSize) {
-					mMovingSide = max;
-				} else {
-					if (trail < 35) {
-						mMovingSide = fx - trail;
-						mMovingSide = mMovingSide / cReelFrameSize;
-					}
-					else if (trail > 65) {
-						mMovingSide = fx - trail + cReelFrameSize;
-						mMovingSide = mMovingSide / cReelFrameSize;
-					}
-					else if (fx < max * cReelFrameSize) {
-						mMovingSide = -1;
-					}
+					sig_Modified.invoke();
 				}
 			}
-		});
+			});
+
+		ui.reel->sig_MouseMove.connect(this, &ClipsWidget::onReelMouseMove);
+		
 		ui.reel->sig_ScrollWheel.connect([&]() {
-			if (ui.scroll->isEnabled()) {
+			if (mClip.clip() && ui.scroll->isEnabled()) {
 				float val = -30.0f;
 				val *= gMouse.wheel();
+
+				mSuppressScroll = true;
 				ui.scroll->setValue((int)val + ui.scroll->value());
+				mSuppressScroll = false;
+
+				mReelCamTarget.toX((float)ui.scroll->value()); // clamped automatically by qt scroll
+				tweenCameraInput(mReelCamTween, *mReelCam, mReelCamTarget);
+				ui.reel->update();
 			}
-		}); 
-
-		connect(ui.scroll, &QScrollBar::valueChanged, [&](int value) {
-			ui.reel->bindStage();
-			mReelCam->setPosX(value);
-			ui.reel->update();
 		});
+	}
 
-		crng.seed(SEED()());
+	void ClipsWidget::onReelMouseMove() {
+		mHovering = NullEntity;
+		setCursor(Qt::ArrowCursor);
+		updateAllCanvasButton();
+
+		if (mMoving && mClip.clip()) {
+			int fx = round(gMouse.currentPosition().x + ui.reel->width() / 2.0f + mReelCam->position().x);
+			fx = max(0, fx);
+			int trail = fx % cReelFrameSize;
+			auto max = mClip.clip()->cells.size();
+
+
+			mMovingSide = 0;
+			if (fx >= max * cReelFrameSize) {
+				mMovingSide = max;
+			} else {
+				if (trail < 35) {
+					mMovingSide = fx - trail;
+					mMovingSide = mMovingSide / cReelFrameSize;
+				} else if (trail > 65) {
+					mMovingSide = fx - trail + cReelFrameSize;
+					mMovingSide = mMovingSide / cReelFrameSize;
+				} else if (fx < max * cReelFrameSize) {
+					mMovingSide = -1;
+				}
+			}
+		}
 	}
 
 	void ClipsWidget::onHover(Entity self, Entity context) {
-		assert(obj<ClipframeHolder>(self));
+		assert(asset<ClipframeHolder>(self));
 		mHovering = self;
-		auto holder = obj<ClipframeHolder>(self);
-
+		auto holder = asset<ClipframeHolder>(self);
 		if (QApplication::queryKeyboardModifiers() & Qt::AltModifier)
 			setCursor(Qt::OpenHandCursor);
-		
-		if (gMouse.state(0) == eInput::ONCE || gMouse.state(0) == eInput::HOLD) {
+
+		if (gMouse.state(0) == eInput::Once || gMouse.state(0) == eInput::Hold) {
 			if (cursor().shape() == Qt::OpenHandCursor) {
 				setCursor(Qt::ClosedHandCursor);
-				if (gMouse.state(0) == eInput::ONCE)
+				if (gMouse.state(0) == eInput::Once)
 					mMoving = self;
 			}
-		}
-		else if (gMouse.state(0) == eInput::LIFT) {
+		} else if (gMouse.state(0) == eInput::Lift) {
 			if (cursor().shape() == Qt::ClosedHandCursor) {
 				setCursor(Qt::OpenHandCursor);
 				return;
@@ -246,90 +321,207 @@ namespace el
 			if (cursor().shape() == Qt::OpenHandCursor)
 				return;
 
-			auto prev = gStage;
-			Stage stage;
 			QDialog dialog(this);
 			AtlasPalette palette(&dialog, true);
-			palette.view()->setStage(&stage);
+			palette.updateAtlas(gAtlsUtil.currentAtlas);
+			palette.updateMaterial(gAtlsUtil.currentMaterial, gAtlsUtil.globalPalettePositon, gAtlsUtil.globalPaletteScale);
 
-			palette.view()->sig_Start.connect([&]() {
-				palette.updateMaterial(gAtlsUtil.currentMaterial);
-				});
-
-			palette.sig_Clicked.connect([&](CellResult h) {
-				bind(prev);
+			palette.sig_Clicked.connect([&](asset<Cell> cell) {
 				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-				assert(item && item->clip);
-				assert(holder->index < item->clip->size());
+				auto clip = item->clip;
+				auto& frames = clip->cells;
+				assert(item && clip);
+				assert(holder->index < frames.size());
+				
+				auto prev = frames.at(holder->index);
+				if (prev != cell) {
+					frames.at(holder->index) = cell;
+					holder->reshape(clip);
+					sig_Modified.invoke();
+					ui.view->update();
+				}
+				gProject.clear<AtlasLastModifiedReelHolder>();
+				holder.add<AtlasLastModifiedReelHolder>();
 
-				item->clip->at(holder->index) = h.cell;
-				holder->reshape(item->clip);
-
-				ui.reel->update();
-				bind(&stage);
 				dialog.close();
-				});
+			});
 
+			mPaused = true;
 			dialog.exec();
-		}
-		else if (gMouse.state(1) == eInput::LIFT) {
+			mPaused = false;
+			gAtlsUtil.globalPalettePositon = palette.camPosition();
+			gAtlsUtil.globalPaletteScale = palette.camScale();
+
+		} else if (gMouse.state(1) == eInput::Lift) {
 			mRemovable = self;
 		}
 	}
 
-	void ClipsWidget::loop() {
-		if (mClipObj.valid() && mClipObj.has<EditorProjectClipAnimation>())
-			mClipObj.get<EditorProjectClipAnimation>().update(mClipObj);
-		ui.view->update();
-	}
+	void ClipsWidget::reorderClipsAccordingToList() {
+		auto atlas = gAtlsUtil.currentAtlas;
+		assert(gAtlsUtil.currentAtlas && gAtlsUtil.currentAtlas.has<AssetLoaded>());
+		auto& list = gAtlsUtil.clipList;
+		auto& meta = atlas.get<AtlasMeta>();
 
-	void ClipsWidget::addClip() {		
-		if (mTexture && mTexture->atlas) {
-			ClipItem* item = new ClipItem(gAtlsUtil.clipList);
-			auto& list = *gAtlsUtil.clipList;
-			assert(gProject->atlases.contains(mTexture->atlas));
-			auto clipname = gProject->atlases[mTexture->atlas];
-			item->setText( list.getNoneConflictingName(QString::fromUtf8(clipname), false) );
-
-			item->clip = gProject->makeSub<Clip>();
-			mTexture->atlas->clips.emplace(item->text().toStdString(), item->clip);
-			list.addItem(item);
-			list.setCurrentItem(item);
+		meta.cliporder.clear();
+		for (auto i = 0; i < list->count(); i++) {
+			auto item = reinterpret_cast<ClipItem*>(list->item(i));
+			meta.cliporder.emplace_back(item->clip);
+			item->clip.get<SubAssetData>().index = i;
 		}
 	}
 
-	void ClipsWidget::removeClip() {
-		if (mTexture && mTexture->atlas) {
-			ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-			if (item && item->clip) {
-				auto clip = item->clip;
-				assert(mTexture->atlas->clips.contains(clip));
-				mTexture->atlas->clips.erase(clip);
-				clip.destroy();
+	void ClipsWidget::updateAllCanvasButton() {
+		auto view = gProject.view<ClipframeHolder>();
+		if (view.size() > 0) {
+			auto pos = gMouse.currentPosition();
+			pos.x += ui.reel->width() / 2.0f + mReelCam->position().x;
+			pos.y -= ui.reel->height() / 2.0f; // Minused because of updateViewport in ui.reel->sig_Paint
 
-				auto view = gStage->view<ClipframeHolder>();
-				gStage->destroy(view.begin(), view.end());
-				delete item;
+			for (asset<ClipframeHolder> holder : view) {
+				auto hit = holder->canvas.bounds.contains(pos);
+				holder->button.update(holder, hit);
 			}
+		}
+	}
+	void ClipsWidget::loop() {
+		if (isActiveWindow()) {
+			if (mViewCam && mViewCamTween.progress() != 1.0f) {
+				mViewCamTween.step(1);
+				ui.view->update();
+			}
+			if (mReelCam && mReelCamTween.progress() != 1.0f) {
+				mReelCamTween.step(1);
+				onReelMouseMove();
+				ui.reel->update();
+			}
+		}
+	}
+
+
+	void ClipsWidget::animLoop() {
+		if (!mPaused) {
+			if (mClip.clip())
+				mClip.step(mClipSprite);
+			ui.view->update();
+		}
+	}
+
+	void ClipsWidget::createClip() {
+		assert(gAtlsUtil.currentAtlas);
+
+		if (gAtlsUtil.currentAtlas.has<AssetLoaded>()) {
+			mSuppressSelect = true;
+			auto& list = *gAtlsUtil.clipList;
+			ClipItem* item = new ClipItem(&list);
+			item->setFlags(item->flags() | Qt::ItemIsEditable);
+
+			auto clipname = gAtlsUtil.currentAtlas.get<GUIAsset>().filePath.stem().generic_u8string();
+			auto newname = list.getNoneConflictingName(QString::fromUtf8(clipname), false);
+			item->setText(newname);
+			clipname = newname.toUtf8();
+
+			// CREATE CLIP
+			auto& meta = gAtlsUtil.currentAtlas.get<AtlasMeta>();
+			auto clip = item->clip = gProject.make<ClipMeta>().add<Clip>();
+			clip.add<SubAssetData>(meta.cliporder.size(), clipname, item->clip);
+			meta.cliporder.emplace_back(clip);
+			gAtlsUtil.currentAtlas->clips.emplace(clipname, clip);
+
+			list.addItem(item);
+			mSuppressSelect = false;
+
+			list.setCurrentItem(item);
+			sig_Modified.invoke();
+		}
+	}
+
+	void ClipsWidget::deleteClip() {
+		assert(gAtlsUtil.currentAtlas);
+		auto atlas = gAtlsUtil.currentAtlas;
+
+		ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+		if (item && item->clip && mClip.clip()) {
+			auto& list = gAtlsUtil.clipList;
+			auto row = list->currentRow();
+			auto clip = item->clip;
+			auto& data = clip.get<SubAssetData>();
+			auto& meta = atlas.get<AtlasMeta>();
+
+			clip->cells.clear();
+			atlas->clips.erase(data.name);
+			clip.destroy();
+
+			mSuppressSelect = true;
+			delete item;
+			mSuppressSelect = false;
+
+			reorderClipsAccordingToList();
+			row = clamp(row, 0, list->count() - 1);
+			list->setCurrentRow(-1);
+			list->setCurrentRow(row);
+			
+
+			sig_Modified.invoke();
 		}
 	}
 
 	void ClipsWidget::addFrame() {
-		if (gAtlsUtil.cellList->count() > 0) {
+		if (gAtlsUtil.cellList->count() > 0 && mClip.clip()) {
 			ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
 			if (item && item->clip) {
 				asset<Cell> cell;
-				if (item->clip->size() > 0) {
-					cell = item->clip->at(item->clip->size() - 1);
+				auto& frames = item->clip->cells;
+				auto size = frames.size();
+				if (size > 0) {
+					cell = frames.at(size - 1);
 				} else if (gAtlsUtil.cellList->count() > 0) {
-					cell = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(0))->holder->cell;
+					cell = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(0))->holder;
 				}
-			
-				item->clip->emplace_back(cell);
-				recreateReel(item->clip);
+				frames.emplace_back(cell);
+
+				auto holder = gProject.make<ClipframeHolder>(gAtlsUtil.currentMaterial, mReelPainter, this);
+				holder->reorder(size);
+				holder->reshape(item->clip);
+
+				syncScroll();
+				ui.reel->update();
+				sig_Modified.invoke();
 			}
 		}
 	}
+
+	void ClipsWidget::updateOnAtlasLoad() {
+		recreateList();
+	}
+
+	void ClipsWidget::recreateList() {
+		if (gAtlsUtil.currentAtlas.has<AssetLoaded>()) {
+			mSuppressSelect = true;
+			auto& list = *gAtlsUtil.clipList;
+			auto row = list.currentRow();
+
+			for (auto i = 0; i < list.count(); i++) {
+				delete list.item(i);
+			} list.clear();
+
+			auto& clips = gAtlsUtil.currentAtlas.get<AtlasMeta>().cliporder;
+			for (sizet i = 0; i < clips.size(); i++) {
+				auto data = asset<SubAssetData>(clips[i]);
+				ClipItem* item = new ClipItem(&list);
+				item->setFlags(item->flags() | Qt::ItemIsEditable);
+
+				item->clip = data;
+				item->setText(QString::fromUtf8(data->name));
+				list.addItem(item);
+			}
+			mSuppressSelect = false;
+
+			list.setCurrentRow(row);
+			recreateReel();
+		}
+	}
+
 
 	void ClipsWidget::onKeyPress(QKeyEvent* e) {
 		if (e->key() == Qt::Key::Key_Alt) {
@@ -346,32 +538,18 @@ namespace el
 		}
 	}
 
-	void ClipsWidget::addReel(asset<Clip> clip) {
-		auto holder = gStage->make<ClipframeHolder>(gAtlsUtil.currentMaterial, mReelPainter);
-		holder.add<Button>(this);
-		holder->reorder(clip->size() - 1);
-		holder->reshape(clip);
-	}
+	void ClipsWidget::recreateReel() {
+		auto clip = mClip.clip();
+		auto view = gProject.view<ClipframeHolder>();
+		gProject.destroy(view.begin(), view.end());
 
-	void ClipsWidget::recreateReel(asset<Clip> clip) {
-		auto currsize = gStage->view<ClipframeHolder>().size();
-		auto destsize = clip->size();
-
-		if (destsize > currsize) {
-			for (auto i = 0; i < destsize - currsize; i++) {
-				auto holder = gStage->make<ClipframeHolder>(gAtlsUtil.currentMaterial, mReelPainter);
-				holder.add<Button>(this);
+		if (clip) {
+			auto size = clip->cells.size();
+			for (sizet i = 0; i < size; i++) {
+				asset<ClipframeHolder> holder = gProject.make<ClipframeHolder>(gAtlsUtil.currentMaterial, mReelPainter, this);
+				holder->reorder(i);
+				holder->reshape(clip);
 			}
-		} else if (currsize > destsize) {
-			auto view = gStage->view<ClipframeHolder>();
-			gStage->destroy(view.begin() + destsize, view.end());
-		}
-
-		sizet i = 0;
-		for (obj<ClipframeHolder> holder : gStage->view<ClipframeHolder>()) {
-			holder->reorder(i);
-			holder->reshape(clip);
-			i++;
 		}
 
 		syncScroll();
@@ -380,136 +558,132 @@ namespace el
 
 
 	void ClipsWidget::syncScroll() {
-		 auto length = gStage->view<ClipframeHolder>().size() * cReelFrameSize;
-		if (ui.reel->width() < length) {
-			ui.scroll->setEnabled(true);
-			ui.scroll->setRange(0, length - ui.reel->width());
-		} else {
-			ui.scroll->setValue(0);
-			ui.scroll->setEnabled(false);
-		}
-	}
-
-	void ClipsWidget::updateAllCanvasButton() {
-		auto pos = gMouse.currentPosition();
-		pos.x += ui.reel->width() / 2.0f + mReelCam->position().x;
-		pos.y -= ui.reel->height() / 2.0f; // because of updateViewport in ui.reel->sig_Paint
-
-		auto& stage = *gStage;
-		for (auto button : stage.view<ClipframeHolder>()) {
-			assert(stage.valid(button) && stage.all_of<ClipframeHolder>(button));
-			bool hit = stage.get<ClipframeHolder>(button).canvas.bounds.contains(pos);
-			stage.get<Button>(button).update(button, hit);
+		auto clip = mClip.clip();
+		if (clip) {
+			auto length = clip->cells.size() * cReelFrameSize;
+			if (ui.reel->width() < length) {
+				ui.scroll->setEnabled(true);
+				ui.scroll->setRange(0, length - ui.reel->width());
+			} else {
+				ui.scroll->setValue(0);
+				ui.scroll->setEnabled(false);
+			}
 		}
 	}
 
 	void ClipsWidget::safeCreateViewObjects() {
 		if (!mViewCam) {
 			ui.view->makeCurrent();
-			mViewCam = gProject->makeSub<EditorCamera>();
-			mViewCam->to(vec3(0.0f, 0.0f, -1000.0f));
+			mViewCam = gProject.make<Camera>().add<EditorAsset>();
+			mViewCamTarget.to(vec3(0.0f, 0.0f, -1000.0f));
 
-			mViewPainter = gProject->makeSub<EditorProjectPainter>("basic_sprite", "texture_uv", 32, mViewCam, Projection::eOrtho,
-				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
+			mViewPainter = gProject.make<Painter>("__el_editor_/shader/basic_sprite.vert", "__el_editor_/shader/texture_uv.frag",
+				32, mViewCam, Projection::eOrtho,
+				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR).add<EditorAsset>();
 			mViewPainter->init();
 
-			mViewShapes = new EditorShapeDebug;
+			mViewShapes = new ShapeDebug2d;
 			mViewShapes->init(mViewCam);
+			*mViewCam = mViewCamTarget;
+			setupCameraTween(mViewCamTween);
 		}
 
-		if (!mClipObj) {
-			mClipObj = gStage->make<EditorProjectSprite>(gAtlsUtil.currentMaterial, mViewPainter, "");
-			mClipObj.add<Position>();
-			mClipObj.add<EditorProjectClipAnimation>(asset<ClipImpl<1>>());
-		}
+		mClipSprite.material = gAtlsUtil.currentMaterial;
+		mClipSprite.painter = mViewPainter;
 	}
 
 	void ClipsWidget::safeCreateFrameObjects() {
 		if (!mReelCam) {
 			ui.reel->makeCurrent();
-			mReelCam = gProject->makeSub<EditorCamera>();
-			mReelCam->to(vec3(0.0f, 0.0f, -1000.0f));
+			mReelCam = gProject.make<Camera>().add<EditorAsset>();
+			mReelCamTarget.to(vec3(0.0f, 0.0f, -1000.0f));
 
-			mReelPainter = gProject->makeSub<EditorProjectPainter>("basic_sprite", "texture_uv", 3000, mReelCam, Projection::eOrtho,
-				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR);
+			mReelPainter = gProject.make<Painter>("__el_editor_/shader/basic_sprite.vert", "__el_editor_/shader/texture_uv.frag",
+				3000, mReelCam, Projection::eOrtho,
+				ePainterFlags::DEPTH_SORT | ePainterFlags::MULTI_MATERIAL | ePainterFlags::Z_CLEAR).add<EditorAsset>();
 			mReelPainter->init();
 
-			mReelShapes = new EditorShapeDebug;
+			mReelShapes = new ShapeDebug2d;
 			mReelShapes->init(mReelCam);
-		}
-	}
 
-	void ClipsWidget::updateTexture() {
-		clearAllViews();
-		auto mat = gAtlsUtil.currentMaterial;
-		if (mat && mat->hasTexture()) {
-			mTexture = mat->textures[0];
-			if (mTexture->atlas) {
-				for (auto it : mTexture->atlas->clips) {
-					ClipItem* item = new ClipItem(gAtlsUtil.clipList);
-					item->setText(QString::fromUtf8(it.first));
-					item->clip = it.second;
-					gAtlsUtil.clipList->addItem(item);
-				}
-			}
-		} ui.reel->update();
+			*mReelCam = mReelCamTarget;
+			setupCameraTween(mReelCamTween);
+		}
 	}
 
 	void ClipsWidget::connectList() {
 		connect(gAtlsUtil.clipList, &QListExtension::currentRowChanged, [&]() {
-			assert(mClipObj);
+			if (isVisible() && !mSuppressSelect) {
+				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+				if (item && item->clip) {
+					mClip.setClip(item->clip);
 
-			auto view = gStage->view<ClipframeHolder>();
-			gStage->destroy(view.begin(), view.end());
+					ui.speedBox->setEnabled(true);
+					ui.repeatBox->setEnabled(true);
+					ui.playButton->setEnabled(true);
 
-			ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
-			//assert(item && item->clip);
+					mSuppressSpinbox = true;
+					ui.speedBox->setValue(item->clip->speed);
+					ui.repeatBox->setChecked(item->clip->repeat);
+					mSuppressSpinbox = false;
 
-			if (item && item->clip) {
-				recreateReel(item->clip);
-				mClipObj.get<EditorProjectClipAnimation>().setClip(item->clip);
+					recreateReel();
+				} else {
+					mClip.setClip(asset<Clip>());
 
-				ui.speedBox->setEnabled(true);
-				ui.repeatBox->setEnabled(true);
-				ui.playButton->setEnabled(true);
+					ui.speedBox->setEnabled(false);
+					ui.repeatBox->setEnabled(false);
+					ui.playButton->setEnabled(false);
+					
+					mSuppressSpinbox = true;
+					ui.speedBox->setValue(0);
+					ui.repeatBox->setChecked(false);
+					mSuppressSpinbox = false;
 
-				ui.speedBox->setValue(item->clip->speed);
-				ui.repeatBox->setChecked(item->clip->repeat);
-				//item->clip->speed;
-
-			} else {
-				ui.speedBox->setEnabled(false);
-				ui.repeatBox->setEnabled(false);
-				ui.playButton->setEnabled(false);
+					recreateReel();
+				}
 			}
-			syncScroll();
 		});
-	}
 
-	void ClipsWidget::clearAllViews() {
-		auto view = gStage->view<ClipframeHolder>();
-		gStage->destroy(view.begin(), view.end());
+		connect(gAtlsUtil.clipList->model(), &QAbstractItemModel::rowsMoved, [&]() {
+			if (isVisible() && !mSuppressSelect) {
+				reorderClipsAccordingToList();
+				sig_Modified.invoke();
+			}
+		});
 
-		auto& list = *gAtlsUtil.clipList;
-		list.clearSelection();
-		list.setCurrentRow(-1);
+		connect(gAtlsUtil.clipList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
+			auto atlas = gAtlsUtil.currentAtlas;
+			if (isVisible() && atlas.has<AssetLoaded>()) {
+				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
 
-		for (sizet i = 0; i < list.count(); i++) {
-			delete list.item(i);
-		}
+				auto& data = item->clip.get<SubAssetData>();
+				auto name = gAtlsUtil.clipList->
+					getNoneConflictingName(reinterpret_cast<QLineEdit*>(pLineEdit)->text()).toStdString();
 
-		list.clear(); // not necessary but okay
+				assert(atlas->clips.contains(data.name));
+				if (data.name != name && atlas->clips.contains(data.name)) {
+					atlas->clips.erase(data.name);
+					atlas->clips[name] = item->clip;
+					atlas.get<AtlasMeta>().clipnames[item->clip] = name;
+					item->setText(QString::fromStdString(name));
+					data.name = name;
+					sig_Modified.invoke();
+				}
+			}
+		});
 	}
 
 	void ClipsWidget::showEditor() {
 		gAtlsUtil.clipList->show();
-		show();
+		recreateList();
 		ui.reel->update();
+		show();
 	}
 
 	void ClipsWidget::hideEditor() {
 		gAtlsUtil.clipList->hide();
-		hide();
 		ui.reel->update();
+		hide();
 	}
 };

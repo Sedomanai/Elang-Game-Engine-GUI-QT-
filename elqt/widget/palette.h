@@ -1,61 +1,85 @@
+/*****************************************************************//**
+ * @file   palette.h
+ * @brief  An Elang Texture Widget that displays an atlas along with a texture
+ *		   It's called palette because it's used to select a cell in an atlas 
+ *		   Like choosing a paint from a palette
+ *		   While this is widget functional all on its own with a cell-selected signal,
+ *		   Its updateAtlas method can be overriden to implement other custom behavior
+ * 
+ * @author Sedomanai
+ * @date   September 2022
+ *********************************************************************/
+
 #pragma once
-
-#include <elements/button.h>
-
 #include "texture_widget.h"
+#include <elements/button.h>
+#include <tools/cell.h>
 
 namespace el {
-
-	
+	struct Atlas;
+	struct ShapeDebug2d;
+	struct PaletteSelectedCell {};
 	struct CellHolder
 	{
-		CellHolder(asset<Cell> cell_, const Box& rect_) : cell(cell_), rect(rect_) {};
+		CellHolder(const Box& rect_, IButtonEvent* buttonEvent) : rect(rect_), button(buttonEvent) {};
 
-		void moldCellFromRect(int aw, int ah, int index) {
-			*cell = Cell(
-				round(rect.l), round(-rect.t), 
-				round(rect.r - rect.l), round(rect.t - rect.b),
-				(int)cell->oX, (int)cell->oY,
-				aw, ah, index
-			); 
+		void moldCellFromRect(asset<Cell> self, int aw, int ah) {
+			auto& meta = self.get<CellMeta>();
+			meta = {
+				(sizet)round(rect.l), (sizet)round(-rect.t),
+				(sizet)round(rect.r - rect.l), (sizet)round(rect.t - rect.b),
+				(sizet)meta.oX, (sizet)meta.oY
+			};
+			self->mold(meta, aw, ah);
 		}
 
-		asset<Cell> cell;
-		Box rect;
+		Box rect, hitbox;
+		Button button;
 	};
 
-	class _ELANGQT_EXPORT QElangPaletteWidget : public QElangTextureWidget, public IButtonEvent
+	class QElangPaletteWidget : public QElangTextureWidget, public IButtonEvent
 	{
 	public:
+		virtual void cleanAtlas();
 
 		QElangPaletteWidget(QWidget* parent = Q_NULLPTR, bool internalLoop = false);
 		virtual ~QElangPaletteWidget() override {
 			release();
 		}
 
-		single_signal<CellHolder> sig_Clicked;
+		// Call this in a custom loop if the parameter internalLoop was false when constructed
+		// Used for tweening, panning, etc.
+		void loop() override;
+
+		// Signal to connect to. Parameter should be the selected cell in entity form 
+		// (with Cell, CellMeta, CellHolder, and AssetData attached)
+		single_signal<asset<Cell>> sig_Clicked;
 		void release() override {
 			QElangTextureWidget::release();
 			if (mCellShapes) {
 				delete mCellShapes;
 				delete mHighlighter;
 				mCellShapes = 0;
-			} 
-			
+			}
 		}
-	protected:
 
+		// Update atlas using an asset entity that holds the Atlas.
+		// If you reimport or modify the atlas, you must call this method again
+		virtual void updateAtlas(asset<Atlas>);
+
+	protected:
+		asset<Atlas> mAtlas;
 		bool mHighlightBatched;
-		EditorShapeDebug* mCellShapes, *mHighlighter;
+		ShapeDebug2d* mCellShapes, *mHighlighter;
+
 		void safeCreatePalette();
 		void forceUnlockDebuggers();
 		void resetMainCamera();
 		void coloring(Box& box);
 		void recreateCellHoldersFromAtlas();
-		void redrawAllCellHolders();
+		void rebatchAllCellHolders();
 		void updateAllHolderCheck();
 
-		void onTextureUpdate() override;
 		void onHover(Entity self, Entity context) override;
 		void onEnter(Entity self, Entity context) override {};
 		void onExit(Entity self, Entity context) override {};

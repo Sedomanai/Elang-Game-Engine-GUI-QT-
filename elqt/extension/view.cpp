@@ -1,4 +1,8 @@
+#include <elqtpch.h>
 #include "view.h"
+
+#include <tools/controls.h>
+#include <tools/camera.h>
 
 namespace el 
 {
@@ -6,6 +10,7 @@ namespace el
 	signal<> QElangView::sSig_GlobalGL;
 
 	QElangView::QElangView(QWidget* parent) : QOpenGLWidget(parent), mInitialized(false) { }
+
 
 	void QElangView::initializeGL() {
 		if (!mInitialized) {
@@ -17,9 +22,9 @@ namespace el
 	}                
 	
 	void QElangView::paintGL() { 
-		bindStage(); 
+		bindStage();
+		makeCurrent();
 		updateViewport(-mWidth / 2.0f, mWidth / 2.0f, -mHeight / 2.0f, mHeight / 2.0f);
-		makeCurrent(); 
 		onViewPaint(); 
 	}
 	
@@ -39,13 +44,13 @@ namespace el
 		gMouse.updateKeys(mpos);
 		switch (me->button()) {
 		case Qt::MouseButton::LeftButton:
-			gMouse.onPress(mpos, MouseSym::LEFT);
+			gMouse.onPress(mpos, MouseSym::Left);
 			break;
 		case Qt::MouseButton::RightButton:
-			gMouse.onPress(mpos, MouseSym::RIGHT);
+			gMouse.onPress(mpos, MouseSym::Right);
 			break;
 		case Qt::MouseButton::MiddleButton:
-			gMouse.onPress(mpos, MouseSym::MIDDLE);
+			gMouse.onPress(mpos, MouseSym::Middle);
 			break;
 		} 
 
@@ -61,13 +66,13 @@ namespace el
 		gMouse.updateKeys(mpos);
 		switch (me->button()) {
 		case Qt::MouseButton::LeftButton:
-			gMouse.onRelease(mpos, MouseSym::LEFT);
+			gMouse.onRelease(mpos, MouseSym::Left);
 			break;
 		case Qt::MouseButton::RightButton:
-			gMouse.onRelease(mpos, MouseSym::RIGHT);
+			gMouse.onRelease(mpos, MouseSym::Right);
 			break;
 		case Qt::MouseButton::MiddleButton:
-			gMouse.onRelease(mpos, MouseSym::MIDDLE);
+			gMouse.onRelease(mpos, MouseSym::Middle);
 			break;
 		} 
 
@@ -90,7 +95,8 @@ namespace el
 		bindStage();
 		makeCurrent();
 
-		float temp = me->angleDelta().y() / 120.0f;
+		bool alt = QApplication::queryKeyboardModifiers() & Qt::AltModifier;
+		float temp = (alt ? me->angleDelta().x() : me->angleDelta().y()) / 120.0f;
 		gMouse.updateWheel(temp);
 
 		onViewScrollWheel();

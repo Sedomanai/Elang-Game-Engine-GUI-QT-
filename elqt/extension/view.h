@@ -1,36 +1,37 @@
+/*****************************************************************//**
+ * @file   tree.h
+ * @brief  Custom extension for QOpenGLWidget.
+ *		   The functionalities of some of the built-in QT widgets is either not enough or requires a workaround.
+ *		   This extension not only helps extend those functionalities, it also provides a catch-all interface
+ *		   that does not require one inheriting from either the base QT class or this class.
+ *
+ * @author Sedomanai
+ * @date   August 2022
+ *********************************************************************/
 #pragma once
-
-#include <GL/glew.h>
-#include <qevent.h>
-#include <qwidget.h>
-#include <qopenglwidget.h>
-#include <qopenglcontext.h>
-
-#include <elang_gui_assets.h>
-#include <tools/registry.h>
-#include <tools/controls.h>
 #include <common/signal.h>
-
-#include "../../elang_qt_builder.h"
-#include "../../elang_qt_globals.h"
+#include <tools/stage.h>
 
 namespace el {
-
-	/// <summary>
-	/// An all purpose OpenGl widget view. Inherit. 
-	/// </summary>
-	class _ELANGQT_EXPORT QElangView : public QOpenGLWidget
+	/**
+	 * Custom extension for QOpenGLWidget.
+	 * 
+	 * The name was changed to QElangView because this is an all purpose class for anything that requires graphic rendering.
+	 * This type does not include much signals and should be inherited. 
+	 * It is good for extensive viewport with their own complicated logic built-in the inherited class. 
+	 */
+	class QElangView : public QOpenGLWidget
 	{
 		Q_OBJECT
-
 	public:
 		QElangView(QWidget* parent = Q_NULLPTR);
 
 		static signal<> sSig_GlobalGL;
-		void bindStage() { bind(mStage); }
-		void setStage(Stage* stage) { mStage = stage; }
+		void bindStage() { gStage = mStage; }
+		void setStage(asset<Stage> stage) { mStage = stage; }
 		float width() { return mWidth; }
 		float height() { return mHeight; }
+
 	protected:
 		virtual void onViewStart() {};
 		virtual void onViewPaint() {};
@@ -57,13 +58,19 @@ namespace el {
 		static bool sInitialized;
 		bool mInitialized;
 		float mWidth, mHeight;
-		Stage* mStage;
+		asset<Stage> mStage;
 	};
-
-	/// <summary>
-	/// View interface decoupled via signals. Inheritance allowed but usually not necessary.
-	/// </summary>
-	class _ELANGQT_EXPORT QElangViewSignaled : public QElangView
+	/**
+	 * Custom extension for QOpenGLWidget with extra signals.
+	 *
+	 * The name was changed to QElangViewSignaled because this is an all purpose class for anything that requires graphic rendering.
+	 * The is for simple graphic views that don't require much logic and receives graphic info from external sources via signals.
+	 *
+	 * The interface is built around signals and slots.
+	 * Custom signals and slots were used over QSignals and QSlots.
+	 * The reason for that is actually consistency - there were some cases where QSignals and QSlots cannot satisfy.
+	 */
+	class QElangViewSignaled : public QElangView
 	{
 		Q_OBJECT
 

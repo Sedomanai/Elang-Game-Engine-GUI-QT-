@@ -1,22 +1,22 @@
 #pragma once
+#include <tools/project.h>
+#include <uic/ui_q_ghost_dialog.h>
 
-#include <QDialog>
-#include <common/string.h>
-
-#include "util.h"
-#include "../elqt/widget/palette.h"
-
-#include <uic/ui_ghost_dialog.h>
-
-namespace el {
-
+namespace el
+{
+	struct Cell;
+	struct Material;
+	struct Atlas;
+	class ElangAtlasGhostDialog;
 	struct ElangAtlasGhostData
 	{
+		friend class ElangAtlasGhostDialog;
+
 		enum class eType
 		{
 			NONE,
 			PREVIOUS,
-			CUSTOM,
+			INDEXED,
 			EXTERNAL
 		};
 
@@ -31,7 +31,12 @@ namespace el {
 		eType type;
 		eOrder order;
 		asset<Cell> cell;
-		asset<EditorProjectMaterial> material;
+		asset<Material> material;
+
+	private:
+		void createInternalAssets();
+		asset<Material> mExternal;
+		asset<Atlas> mExternalAtlas;
 	};
 
 	class ElangAtlasGhostDialog : public QDialog
@@ -39,18 +44,12 @@ namespace el {
 		Q_OBJECT
 
 	public:
-		ElangAtlasGhostDialog(QWidget* parent = Q_NULLPTR);
-		~ElangAtlasGhostDialog();
-
-		void open();
-		bool confirmed() { return mConfirmed; }
-		ElangAtlasGhostData data() { return mData; }
-
+		ElangAtlasGhostDialog(ElangAtlasGhostData& data, QWidget* parent = Q_NULLPTR);
 	private:
-		asset<EditorProjectMaterial> mExternal;
-		ElangAtlasGhostData mData;
+		void syncUIWithData();
+		bool suppressSelect;
+		ElangAtlasGhostData& mData;
 		bool mConfirmed;
-		void customize(bool);
 		Ui::GhostDialogUI ui;
 	};
 }

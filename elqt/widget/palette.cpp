@@ -1,10 +1,15 @@
+#include <elqtpch.h>
 #include "palette.h"
 
-#include <qopenglcontext.h>
+#include <apparatus/ui.h>
+#include <tools/material.h>
+#include <tools/controls.h>
+#include <tools/painter.h>
+#include <tools/atlas.h>
+
 #include "../color_code.h"
 
 namespace el {
-	
 	QElangPaletteWidget::QElangPaletteWidget(QWidget* parent, bool internalLoop)
 		: QElangTextureWidget(parent, internalLoop), mHighlightBatched(false), mCellShapes(0)
 	{
@@ -12,81 +17,108 @@ namespace el {
 
 		ui.view->sig_Start.connect([&]() {
 			safeCreatePalette();
+			rebatchAllCellHolders();
 		});
 
 		ui.view->sig_Paint.connect([&]() {
-			if (gGUI.open()) {
-				mCellShapes->draw();
-				mHighlighter->draw();
-				mHighlightBatched = false;
-			}
+			mCellShapes->draw();
+			mHighlighter->draw();
+			mHighlightBatched = false;
 		});
 
 		ui.view->sig_MousePress.connect([&]() {
 			updateAllHolderCheck();
-			});
+		});
 		ui.view->sig_MouseRelease.connect([&]() {
 			updateAllHolderCheck();
-			});
+		});
 		ui.view->sig_MouseMove.connect([&]() {
 			updateAllHolderCheck();
-			});
+		});
 	}
 
-	
-	void QElangPaletteWidget::onTextureUpdate() {
-		safeCreatePalette();
+	void QElangPaletteWidget::updateAtlas(asset<Atlas> atlas) {
+		gMouse.reset();
+		mAtlas = atlas;
 		recreateCellHoldersFromAtlas();
-		redrawAllCellHolders();
+		rebatchAllCellHolders();
+		ui.view->update();
 	}
 
-	
-	void QElangPaletteWidget::redrawAllCellHolders() {
-		assert(gGUI.open());
-		assert(mTexture);
-		forceUnlockDebuggers();
-		resetMainCamera();
-		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-			mCellShapes->line.batchAABB(holder->rect, gEditorColor.cell);
-		}
-		mCellShapes->line.flags |= ePainterFlags::LOCKED;
-	}
+	void QElangPaletteWidget::loop() {
+		if (isActiveWindow() && mMainCam) {
+			if (gMouse.state(1) == eInput::Hold) {
+				mMainCamTarget.move(vec3(mMoveDelta * 0.5, 0));
+				syncCameraTarget();
+				tweenCameraInput(mMainCamTween, *mMainCam, mMainCamTarget);
+				//snapCamera();
+				ui.view->update();
+			}
 
-	
-	void QElangPaletteWidget::updateAllHolderCheck() {
-		auto pos = *mMainCam * gMouse.currentPosition();
-		sizet i = 0;
-		for (obj<CellHolder> holder : gStage->view<CellHolder>()) {
-			assert(holder); // debug stage binding after sig_Clicked
-			bool hit = holder->rect.contains(pos);
-			holder.get<Button>().update(holder, hit);
-			i++;
+			if (gMouse.state(1) == eInput::Hold || gMouse.wheel() != 0.0f) {
+				updateAllHolderCheck();
+			}
+			if (mMainCamTween.progress() != 1.0f) {
+				mMainCamTween.step(1);
+				ui.view->update();
+			}
 		}
 	}
 
-	
-	void QElangPaletteWidget::safeCreatePalette() {
-		if (!mCellShapes) {
-			ui.view->makeCurrent();
-			gStage->storage<asset<Cell>>().reserve(300);
-			gStage->storage<Box>().reserve(300);
-			gStage->storage<Button>().reserve(300);
-			mCellShapes = new EditorShapeDebug;
-			mCellShapes->init(mMainCam);
-
-			mHighlighter = new EditorShapeDebug;
-			mHighlighter->init(mMainCam);
+	void QElangPaletteWidget::cleanAtlas() {
+		if (mAtlas) {
+			auto& cells = mAtlas.get<AtlasMeta>().cellorder;
 		}
 	}
 
+	void QElangPaletteWidget::recreateCellHoldersFromAtlas() {
+		if (mAtlas && mAtlas.has<AssetLoaded>()) {
+			auto& meta = mAtlas.get<AtlasMeta>();
+
+			for (auto i = 0; i < meta.cellorder.size(); i++) {
+				asset<CellMeta> cm = meta.cellorder[i];
+				if (cm.has<CellHolder>()) {
+					cm.get<CellHolder>().button.setEvent(this);
+				} else {
+					auto& cell = cm.get<Cell>();
+
+					Box rect;
+					rect.l = cell.uvLeft * meta.width;
+					rect.r = cell.uvRight * meta.width;
+					rect.b = -cell.uvDown * meta.height;
+					rect.t = -cell.uvUp * meta.height;
+
+					gProject.emplace<CellHolder>(cm, rect, this);
+				}
+			}
+		}
+	}
 	
+	void QElangPaletteWidget::rebatchAllCellHolders() {
+		if (mAtlas && mAtlas.has<AssetLoaded>() && mCellShapes) {
+			auto& cells = mAtlas.get<AtlasMeta>().cellorder;
+			forceUnlockDebuggers();
+			resetMainCamera();
+			for (asset<CellHolder> holder : cells) {
+				mCellShapes->line.batchAABB(holder->rect, gEditorColor.cell);
+			}
+			for (asset<CellHolder> holder : gProject.view<PaletteSelectedCell>()) {
+				auto color = gEditorColor.cell;
+				color.a = 80;
+				mCellShapes->fill.batchAABB(holder->rect, color);
+			}
+			mCellShapes->line.flags |= ePainterFlags::LOCKED;
+			mCellShapes->fill.flags |= ePainterFlags::LOCKED;
+		}
+	}
+
 	void QElangPaletteWidget::forceUnlockDebuggers() {
 		mCellShapes->line.forceUnlock();
 		mHighlighter->line.forceUnlock();
 		mHighlighter->fill.forceUnlock();
 	}
 
-	
+
 	void QElangPaletteWidget::resetMainCamera() {
 		mCellShapes->line.camera = mMainCam;
 		mCellShapes->fill.camera = mMainCam;
@@ -95,59 +127,52 @@ namespace el {
 	}
 
 	
-	void QElangPaletteWidget::coloring(Box& box) {
-		color8 color = (gMouse.state(0) >= eInput::ONCE) ?
-			gEditorColor.cellSelected : gEditorColor.cellHovered;
-		//color8 color(30, 255, 220, 255);
-		//gEditorColor.cell
-		//if (gMouse.state(0) >= eInput::ONCE) {
-		//	color.r = 180;
-		//	color.g = 255;
-		//	color.b = 30;
-		//}
-		mHighlighter->line.batchAABB(box, color);
-		color.a = gEditorColor.cellFillAlpha;
-		mHighlighter->fill.batchAABB(box, color);
-	}
-
-	
-	void QElangPaletteWidget::recreateCellHoldersFromAtlas() {
-		assert(gGUI.open());
-		assert(mTexture);
-
-		auto view = gStage->view<CellHolder>();
-		gStage->destroy(view.begin(), view.end());
-
-		if (mTexture->atlas) {
-			auto&& cv = mTexture->atlas->packedAndCachedCells();
-			for (auto i = 0; i < cv.size(); i++) {
-				auto it = cv[i];
-				auto& cell = *asset<Cell>(it);
-
-				Box rect;
-				rect.l = cell.uvLeft * mTexture->width();
-				rect.r = cell.uvRight * mTexture->width();
-				rect.b = -cell.uvDown * mTexture->height();
-				rect.t = -cell.uvUp * mTexture->height();
-
-				auto holder = gStage->make<CellHolder>(it, rect);
-				holder.add<Button>(this);
+	void QElangPaletteWidget::updateAllHolderCheck() {
+		if (mMaterial && mMaterial->hasTexture() && mAtlas && mMainCam) {
+			auto& cells = mAtlas.get<AtlasMeta>().cellorder;
+			auto pos = *mMainCam * gMouse.currentPosition();
+			for (auto i = 0; i < cells.size(); i++) {
+				if (asset<CellHolder> holder = cells[i]) {
+					bool hit = holder->rect.contains(pos);
+					holder->button.update(holder, hit);
+				}
 			}
 		}
 	}
 
+	void QElangPaletteWidget::safeCreatePalette() {
+		if (!mCellShapes) {
+			ui.view->makeCurrent();
+			mCellShapes = new ShapeDebug2d;
+			mCellShapes->init(mMainCam);
+
+			mHighlighter = new ShapeDebug2d;
+			mHighlighter->init(mMainCam);
+		}
+	}
+
+	
+	void QElangPaletteWidget::coloring(Box& box) {
+		color8 color = (gMouse.state(0) >= eInput::Once) ?
+			gEditorColor.cellSelected : gEditorColor.cellHovered;
+		mHighlighter->line.batchAABB(box, color);
+		color.a = gEditorColor.cellFillAlpha;
+		mHighlighter->fill.batchAABB(box, color);
+	}
 	
 	void QElangPaletteWidget::onHover(Entity self, Entity context) {
-		auto holder = obj<CellHolder>(self);
+		auto holder = asset<CellHolder>(self);
 		if (holder) {
 			if (!mHighlightBatched) {
 				coloring(holder->rect);
 				mHighlightBatched = true;
 			}
-			
-			if (gMouse.state(0) == eInput::LIFT) {
+
+			if (gMouse.state(0) == eInput::Lift) {
 				if (holder) {
-					sig_Clicked.invoke(*holder);
+					sig_Clicked.invoke(holder);
+					gProject.clear<PaletteSelectedCell>();
+					holder.add<PaletteSelectedCell>();
 				}
 			}
 		}

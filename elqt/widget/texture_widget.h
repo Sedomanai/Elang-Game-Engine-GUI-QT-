@@ -1,16 +1,29 @@
-#pragma once
+/*****************************************************************//**
+ * @file   texture_widget.h
+ * @brief  Custom OpenGL view which displays a texture
+ *	       Pan view with scrollbars, mouse middle click, and right click
+ *		   Zoom in and out using middle mouse wheel
+ * 
+ * @author Sedomanai
+ * @date   September 2022
+ *********************************************************************/
 
-#include <QWidget>
-#include <elements/basic.h>
-#include <elements/sprite.h>
+#pragma once
 #include <uic/ui_texture_widget.h>
 
 #include "../extension/view.h"
-#include "../../elang_qt_globals.h"
+
+#include <tools/camera.h>
+#include <elements/basic.h>
+#include <elements/sprite.h>
+#include <tweeny/tween.h>
+#include <tools/asset.h>
 
 namespace el
 {
-	class _ELANGQT_EXPORT QElangTextureWidget : public QWidget
+	struct Material;
+	struct Painter;
+	class QElangTextureWidget : public QWidget
 	{
 		Q_OBJECT
 
@@ -18,21 +31,22 @@ namespace el
 		QElangTextureWidget(QWidget* parent = Q_NULLPTR, bool internalLoop = false);
 		virtual ~QElangTextureWidget() { release(); }
 
-		void loop();
-		void updateMaterial(asset<EditorProjectMaterial>);
-		QElangViewSignaled* view();
+		// Call this in a custom loop if the parameter internalLoop was false when constructed
+		// Used for tweening, panning, etc.
+		virtual void loop();
 
-		virtual void release() {
-			if (mMainCam) {
-				ui.view->makeCurrent();
-				mMainCam.destroy();
-				mPainter.destroy();
-			}
-		}
-		void safeCreateObjects();
+		// Update texture using a material that holds the texture. 
+		// If you reimport or modify either the texture or the material, you must call this method again
+		void updateMaterial(asset<Material>, const vec2& startPosition = vec2(-65332.0f, 65332.0f), float startScale = 1.0f);
+
+		// why was this exposed?... pending
+		//QElangViewSignaled* view();
+
+		vec2 camPosition();
+		float camScale();
+
 	protected:
 		Ui::QElangTextureWidgetUI ui;
-		virtual void onTextureUpdate() {};
 
 		Qt::CursorShape mMoveCursor;
 		aabb mCamBounds;
@@ -42,17 +56,25 @@ namespace el
 		float mResolution;
 
 		Box mMainCamBox, mTextureBox;
-		asset<Texture> mTexture;
-		asset<EditorCamera> mMainCam;
-		asset<EditorProjectPainter> mPainter;
-		obj<EditorProjectSprite> mTexObj;
+		asset<Material> mMaterial;
+		asset<Painter> mPainter;
+		asset<Camera> mMainCam;
+		tweeny::tween<vec3> mMainCamTween;
+		Camera mMainCamTarget;
+
+		Sprite mSprite;
+		Position mSpritePosition;
 
 		bool mSuppressScroll;
 		bool mMovingScreen;
 
+		void safeCreateObjects();
 		void connectMouseInput();
-		void syncCamera(); // fixed
+		void snapCamera();
+		void syncCameraTarget(); // fixed
 		void syncScrollBars(); // fixed
+		void syncScrollBarPositionToCam();
+		virtual void release();
 	};
 
 }

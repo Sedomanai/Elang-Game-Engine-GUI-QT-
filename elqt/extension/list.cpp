@@ -1,6 +1,9 @@
+#include <elqtpch.h>
 #include "list.h"
+
 #include <common/string.h>
-#include <common/container.h>
+#include <common/vector.h>
+#include <common/string_algorithm.h>
 
 namespace el {
 	QListExtension::QListExtension(QWidget *parent)
@@ -49,7 +52,7 @@ namespace el {
 								}
 							}
 							if (num.size() > 0) {
-								numbers.push_back(toInt(num));
+								numbers.push_back(el_string::toInt(num));
 								num.clear();
 							}
 						}

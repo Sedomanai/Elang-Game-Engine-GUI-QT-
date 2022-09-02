@@ -1,12 +1,25 @@
+/*****************************************************************//**
+ * @file   tree.h
+ * @brief  Custom extension for QTreeWidget. 
+ *		   The functionalities of some of the built-in QT widgets is either not enough or requires a workaround.
+ *		   This extension not only helps extend those functionalities, it also provides a catch-all interface 
+ *		   that does not require one inheriting from either the base QT class or this class. 
+ * 
+ * @author Sedomanai
+ * @date   August 2022
+ *********************************************************************/
 #pragma once
 
-#include <QTreeWidget>
-#include <QDropEvent>
-
-#include "../elang_qt_builder.h"
-
 namespace el {
-struct _ELANGQT_EXPORT QTreeExtension : public QTreeWidget
+	/**
+	 * Custom extension for QTreeWidget.
+	 * The interface is built around signals and slots.
+	 *
+	 * Custom signals and slots were (will be - trees aren't used for now so they're on hold) used over QSignals and QSlots.
+	 * The reason for that is actually consistency - there were some cases where QSignals and QSlots cannot satisfy.
+	 * 
+	 */
+struct QTreeExtension : public QTreeWidget
 {
 	using QTreeWidget::QTreeWidget;
 	Q_OBJECT

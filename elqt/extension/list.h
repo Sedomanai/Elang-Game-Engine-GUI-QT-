@@ -1,14 +1,26 @@
-#pragma once
+/*****************************************************************//**
+ * @file   tree.h
+ * @brief  Custom extension for QListWidget.
+ *		   The functionalities of some of the built-in QT widgets is either not enough or requires a workaround.
+ *		   This extension not only helps extend those functionalities, it also provides a catch-all interface
+ *		   that does not require one inheriting from either the base QT class or this class.
+ *
+ * @author Sedomanai
+ * @date   August 2022
+ *********************************************************************/
 
-#include <QListWidget>
-#include <QDropEvent>
-#include <QKeyEvent>
+#pragma once
 #include <common/signal.h>
 
-#include "../elang_qt_builder.h"
-
 namespace el {
-	class _ELANGQT_EXPORT QListExtension : public QListWidget
+	/**
+	 * Custom extension for QListWidget.
+	 * The interface is built around signals and slots. 
+	 * 
+	 * Custom signals and slots were used over QSignals and QSlots. 
+	 * The reason for that is actually consistency - there were some cases where QSignals and QSlots cannot satisfy. 
+	 */
+	class QListExtension : public QListWidget
 	{
 		Q_OBJECT
 

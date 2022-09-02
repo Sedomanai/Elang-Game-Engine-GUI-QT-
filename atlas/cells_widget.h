@@ -1,12 +1,9 @@
 #pragma once
 #include "../elqt/widget/palette.h"
 #include "util.h"
-//
-//#include <loaders/atlas.h>
-//#include "atlas_util.h"
-//#include <qt_texture_widget.h>
 
-namespace el {
+namespace el
+{;
 	struct CellsWidget : public QElangPaletteWidget
 	{
 		Q_OBJECT
@@ -14,41 +11,45 @@ namespace el {
 		CellsWidget(QWidget* parent = Q_NULLPTR);
 
 		void autoCreateCell();
-		void autoGenCells(uint sortorder, uint margin);
-		void sortCells(uint sortorder, uint margin);
+		void autoNewGenAtlas(asset<Atlas> atlas, uint sortorder, uint margin);
+		void reorderCellsAccordingToList();
 		void combineCells();
 		void showEditor();
 		void hideEditor();
 		void deleteSelected();
-		void renameAll();
-		//void importAtlasBegin();
-		//void importAtlasEnd();
 
+		void onMouseMove();
 		void onKeyPress(QKeyEvent*);
 		void onKeyRelease(QKeyEvent*);
 
+		void updateAtlas(asset<Atlas>) override;
+		void loop() override;
+
+		signal<> sig_Modified;
 	private:
 		enum CursorState
 		{
-			NONE = 0,
-			MOVE = 1,
-			LEFT = 2,
-			BOTTOM = 4,
-			RIGHT = 8,
-			TOP = 16,
+			eNone = 0,
+			eMove = 1,
+			eLeft = 2,
+			eBottom = 4,
+			eRight = 8,
+			eTop = 16,
 		};
 
 		enum SelectState
 		{
-			SNONE,
-			SELECTING,
-			CREATING,
-			MOVING,
-			SIZING,
+			eSNone,
+			eSelecting,
+			eCreating,
+			eMoving,
+			eSizing,
 		} mState;
 
-		void deleteCell(obj<CellHolder> cell);
-		obj<CellHolder> createCell(const string& name);
+		void renameAll();
+		void sortAtlasOnNewGen(uint sortorder, uint margin);
+		void deleteCell(asset<CellHolder> cell);
+		asset<CellHolder> createCell(const string& name);
 		void createNamedCell();
 		color8 selectColoring();
 		void onHover(Entity self, Entity context) override {};
@@ -57,13 +58,10 @@ namespace el {
 		uint mCursorState;
 
 		uint mAlphaCut;
-		bool mAlt, mCtrl;
 		bool mSuppressSelect;
 
-		Observer mSelects;
+		vec2 mCamPivot, mGrabPos;
 		Box mSelectRect;
-
-		void onTextureUpdate() override;
 
 		void safeClearSelection();
 		void connectMouseInput();

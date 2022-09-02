@@ -1,36 +1,33 @@
 #pragma once
-#include "cells_widget.h"
 #include <uic/ui_clips_widget.h>
-#include <elements/clip.h>
+#include "../elqt/extension/view.h"
+
+#include <tools/camera.h>
 #include <common/random.h>
-//#include "aepalette.h"
-//#include "atlas_util.h"
+#include <elements/button.h>
+#include <elements/basic.h>
+#include <elements/sprite.h>
+#include <elements/canvas.h>
+#include <elements/clipanim.h>
+
+#include <tweeny/tween.h>
 
 namespace el
 {
-
-	#define cReelFrameSize 100
+	struct Clip;
+	struct ShapeDebug2d;
+	struct Camera;
+	struct Texture;
 
 	struct ClipframeHolder
 	{
-		EditorProjectCanvas canvas;
+		Canvas<SpriteVertex> canvas;
+		Button button;
 		sizet index;
 
-		ClipframeHolder(
-			asset<EditorProjectMaterial> material, asset<EditorProjectPainter> painter
-		) : canvas(material, painter) {}
-
-		void reshape(asset<Clip> clip) {
-			assert(index < clip->size());
-			auto cell = clip->at(index);
-			if (cell)
-				canvas.update(cell);
-		}
-
-		void reorder(sizet index_) {
-			index = index_;
-			canvas.bounds = aabb(index * cReelFrameSize, -cReelFrameSize, index * cReelFrameSize + cReelFrameSize, -15);
-		}
+		ClipframeHolder(asset<Material> material, asset<Painter> painter, IButtonEvent* btnEvent);
+		void reshape(asset<Clip> clip);
+		void reorder(sizet index_);
 	};
 
 	struct ClipsWidget : public QWidget, public IButtonEvent
@@ -39,51 +36,33 @@ namespace el
 	public:
 		ClipsWidget(QWidget* parent = Q_NULLPTR);
 
-		void updateTexture();
 		void showEditor();
 		void hideEditor();
+		void animLoop();
 		void loop();
-		void clearAllViews();
 
-		void addClip();
-		void removeClip();
+		void createClip();
+		void deleteClip();
 		void addFrame();
 
+		void updateOnAtlasLoad();
 		void onKeyPress(QKeyEvent*);
 		void onKeyRelease(QKeyEvent*);
 
 		QElangView* view() { return ui.view; }
 		QElangView* reel() { return ui.reel; }
+
+		signal<> sig_Modified;
 	private:
-		void addReel(asset<Clip>);
-		void recreateReel(asset<Clip>);
-
-		int mViewWidth, mViewHeight, mFramesWidth, mFramesHeight;
-		int mMovingSide;
-
-		rng crng;
-		Ui::ClipsWidgetUI ui;
-
-		asset<EditorCamera> mViewCam;
-		asset<EditorProjectPainter> mViewPainter;
-		EditorShapeDebug* mViewShapes;
-
-
-		asset<Texture> mTexture;
-		obj<EditorProjectSprite> mClipObj;
-		obj<ClipframeHolder> mHovering, mMoving, mRemovable;
-
-		asset<EditorCamera> mReelCam;
-		asset<EditorProjectPainter> mReelPainter;
-		EditorShapeDebug* mReelShapes;
-		QLabel* mLabel;
-
-		bool mPaused;
-		uint32 mFrame;
-
-		void updateAllCanvasButton();
+		void connectView();
+		void connectReel();
+		void onReelMouseMove();
 		void safeCreateViewObjects();
 		void safeCreateFrameObjects();
+		void recreateList();
+		void recreateReel();
+		void reorderClipsAccordingToList();
+		void updateAllCanvasButton();
 		void connectList();
 		void syncScroll();
 
@@ -92,6 +71,37 @@ namespace el
 		void onHover(Entity self, Entity context) override;
 		void onExit(Entity self, Entity context) override {};
 		void postUpdate(Entity self, Entity context) override {};
+
+		bool mSuppressScroll;
+
+		int mViewWidth, mViewHeight, mFramesWidth, mFramesHeight;
+		int mMovingSide;
+
+		rng crng;
+		Ui::ClipsWidgetUI ui;
+
+		ShapeDebug2d* mViewShapes;
+		asset<Painter> mViewPainter;
+		asset<Camera> mViewCam;
+		tweeny::tween<vec3> mViewCamTween;
+		Camera mViewCamTarget;
+
+		asset<Texture> mTexture;
+		ClipAnimation mClip;
+		Sprite mClipSprite;
+		Position mClipPosition;
+
+		ShapeDebug2d* mReelShapes;
+		QLabel* mLabel;
+		asset<ClipframeHolder> mHovering, mMoving, mRemovable;
+		asset<Painter> mReelPainter;
+		asset<Camera> mReelCam;
+		tweeny::tween<vec3> mReelCamTween;
+		Camera mReelCamTarget;
+
+		bool mPaused, mSuppressSelect, mSuppressSpinbox;
+		uint32 mFrame;
+
 	};
 }
 
