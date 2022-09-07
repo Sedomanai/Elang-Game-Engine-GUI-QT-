@@ -131,13 +131,29 @@ namespace el {
 		if (mMaterial && mMaterial->hasTexture() && mAtlas && mMainCam) {
 			auto& cells = mAtlas.get<AtlasMeta>().cellorder;
 			auto pos = *mMainCam * gMouse.currentPosition();
+			mHovering = NullEntity;
 			for (auto i = 0; i < cells.size(); i++) {
 				if (asset<CellHolder> holder = cells[i]) {
 					bool hit = holder->rect.contains(pos);
 					holder->button.update(holder, hit);
 				}
 			}
+			if (gMouse.state(0) == eInput::Lift)
+				mHeld = NullEntity;
+
+			if (mHeld && !mHighlightBatched) {
+				color8 color = (mHovering == mHeld) ? gEditorColor.cellSelected : gEditorColor.cellHovered;
+				mHighlighter->line.batchAABB(mHeld->rect, color);
+				color.a = gEditorColor.cellFillAlpha;
+				mHighlighter->fill.batchAABB(mHeld->rect, color);
+				mHighlightBatched = true;
+			}
+			updateCursor();
 		}
+	}
+
+	void QElangPaletteWidget::updateCursor() {
+		setCursor((mHovering || mHeld) ? Qt::CursorShape::PointingHandCursor : Qt::CursorShape::ArrowCursor);
 	}
 
 	void QElangPaletteWidget::safeCreatePalette() {
@@ -151,30 +167,31 @@ namespace el {
 		}
 	}
 
-	
-	void QElangPaletteWidget::coloring(Box& box) {
-		color8 color = (gMouse.state(0) >= eInput::Once) ?
-			gEditorColor.cellSelected : gEditorColor.cellHovered;
-		mHighlighter->line.batchAABB(box, color);
-		color.a = gEditorColor.cellFillAlpha;
-		mHighlighter->fill.batchAABB(box, color);
-	}
-	
 	void QElangPaletteWidget::onHover(Entity self, Entity context) {
-		auto holder = asset<CellHolder>(self);
-		if (holder) {
-			if (!mHighlightBatched) {
-				coloring(holder->rect);
-				mHighlightBatched = true;
+		mHovering = asset<CellHolder>(self);
+		if (mHovering) {
+			if (gMouse.state(0) == eInput::Once) {
+				mHeld = self;
 			}
 
-			if (gMouse.state(0) == eInput::Lift) {
-				if (holder) {
-					sig_Clicked.invoke(holder);
+			if (gMouse.state(0) == eInput::Lift && mHeld) {
+				if (mHovering == mHeld) {
+					sig_Clicked.invoke(mHovering);
 					gProject.clear<PaletteSelectedCell>();
-					holder.add<PaletteSelectedCell>();
+					mHovering.add<PaletteSelectedCell>();
 				}
 			}
+
+			if (!mHeld && !mHighlightBatched) {
+				color8 color = gEditorColor.cellHovered;
+				mHighlighter->line.batchAABB(mHovering->rect, color);
+				color.a = gEditorColor.cellFillAlpha;
+				mHighlighter->fill.batchAABB(mHovering->rect, color);
+				mHighlightBatched = true;
+			}
 		}
+	}
+	void QElangPaletteWidget::postUpdate(Entity self, Entity context) {
+
 	}
 }

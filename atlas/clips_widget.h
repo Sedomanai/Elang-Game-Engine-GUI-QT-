@@ -32,6 +32,14 @@ namespace el
 
 	struct ClipsWidget : public QWidget, public IButtonEvent
 	{
+		enum eState
+		{
+			None,
+			Selecting,
+			Moving,
+			Deleting
+		};
+
 		Q_OBJECT
 	public:
 		ClipsWidget(QWidget* parent = Q_NULLPTR);
@@ -56,7 +64,6 @@ namespace el
 	private:
 		void connectView();
 		void connectReel();
-		void onReelMouseMove();
 		void safeCreateViewObjects();
 		void safeCreateFrameObjects();
 		void recreateList();
@@ -65,12 +72,15 @@ namespace el
 		void updateAllCanvasButton();
 		void connectList();
 		void syncScroll();
+		void updateCursor();
+		vec2 screenToReel();
 
 		// Inherited via IButtonEvent
 		void onEnter(Entity self, Entity context) override {};
 		void onHover(Entity self, Entity context) override;
 		void onExit(Entity self, Entity context) override {};
-		void postUpdate(Entity self, Entity context) override {};
+		void postUpdate(Entity self, Entity context) override;
+		void onMouseReelExit();
 
 		bool mSuppressScroll;
 
@@ -93,7 +103,9 @@ namespace el
 
 		ShapeDebug2d* mReelShapes;
 		QLabel* mLabel;
-		asset<ClipframeHolder> mHovering, mMoving, mRemovable;
+		
+		asset<ClipframeHolder> mHovering, mHeld;
+		eState mState;
 		asset<Painter> mReelPainter;
 		asset<Camera> mReelCam;
 		tweeny::tween<vec3> mReelCamTween;

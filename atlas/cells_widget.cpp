@@ -13,7 +13,6 @@
 
 namespace el
 {
-
 	CellsWidget::CellsWidget(QWidget* parent) :
 		mState(CellsWidget::eSNone), QElangPaletteWidget(parent), mSuppressSelect(false), mAlphaCut(10) {
 		ui.view->sig_Start.connect([&]() {
@@ -105,7 +104,6 @@ namespace el
 		meta.cellnames.clear();
 
 		auto name = mAtlas.get<AssetData>().filePath.stem().generic_u8string();
-
 
 		auto& order = meta.cellorder;
 

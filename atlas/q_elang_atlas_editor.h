@@ -22,6 +22,8 @@ namespace el
 		void openTexture();
 		void openAtlas();
 		void saveAtlas();
+		void backupAtlas();
+		void refresh();
 
 		void debugTexture();
 		void debugAtlas();
@@ -35,6 +37,7 @@ namespace el
 		void keyPressEvent(QKeyEvent*) override;
 		void keyReleaseEvent(QKeyEvent*) override;
 		void closeEvent(QCloseEvent*) override;
+		bool eventFilter(QObject* watched, QEvent* event) override;
 	};
 }
 

@@ -69,21 +69,22 @@ namespace el {
 
 	protected:
 		asset<Atlas> mAtlas;
+		asset<CellHolder> mHovering, mHeld;
 		bool mHighlightBatched;
 		ShapeDebug2d* mCellShapes, *mHighlighter;
 
 		void safeCreatePalette();
 		void forceUnlockDebuggers();
 		void resetMainCamera();
-		void coloring(Box& box);
 		void recreateCellHoldersFromAtlas();
 		void rebatchAllCellHolders();
 		void updateAllHolderCheck();
+		void updateCursor();
 
 		void onHover(Entity self, Entity context) override;
 		void onEnter(Entity self, Entity context) override {};
 		void onExit(Entity self, Entity context) override {};
-		void postUpdate(Entity self, Entity context) override {};
+		void postUpdate(Entity self, Entity context) override;
 	};
 
 	using AtlasPalette = QElangPaletteWidget;

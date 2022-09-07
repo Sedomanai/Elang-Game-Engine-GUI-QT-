@@ -26,6 +26,10 @@ namespace el
 		tex.get<Texture>().atlas = atlas;
 		gAtlsUtil.currentAtlas = atlas;
 
+		if (qApp)
+			qApp->installEventFilter(this);
+
+		setFocusPolicy(Qt::FocusPolicy::TabFocus);
 		connectActions();
 		debugTexture();
 		debugAtlas();
@@ -65,7 +69,7 @@ namespace el
 					endWaitProcess();
 				}
 			}
-		});
+			});
 	}
 
 	void QElangAtlasEditor::newAtlas() {
@@ -190,6 +194,33 @@ namespace el
 		}
 	}
 
+	void QElangAtlasEditor::backupAtlas() {
+
+	}
+
+	void QElangAtlasEditor::refresh() {
+		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->hasTexture());
+		auto tex = gAtlsUtil.currentMaterial->textures[0];
+		if (tex.has<AssetLoaded>()) {
+			auto& data = tex.get<AssetData>();
+			if (fio::exists(data.filePath)) {
+				data.inode = el_file::identifier(data.filePath);
+				auto lwt = fio::last_write_time(data.filePath);
+				if (lwt > data.lastWriteTime) {
+					auto& meta = tex.get<TextureMeta>();
+					tex->unload(meta);
+					tex->importFile(data.filePath, meta);
+					data.lastWriteTime = lwt;
+				}
+			} else { // Original texture file has been deleted
+				//auto btn = QMessageBox::question(this, "Texture Warning",
+				//	tr("The original texture file has been deleted. Keep texture?"),
+				//	QMessageBox::Yes | QMessageBox::No,
+				//	QMessageBox::Yes);
+			}
+		}
+	}
+
 	void QElangAtlasEditor::debugTexture() {
 		fio::path path = "D:/Programming/_Elang/SimpleTest/Assets/link.png";
 		auto tex = gAtlsUtil.currentMaterial->textures[0];
@@ -260,29 +291,29 @@ namespace el
 
 	void QElangAtlasEditor::keyPressEvent(QKeyEvent* e) {
 		switch (mViewMode) {
-		case AtlasViewMode::Cells:
-		mCellsWidget->onKeyPress(e);
-		break;
-		case AtlasViewMode::Pivot:
-		//mOriginView->onKeyPress(e);
-		break;
-		case AtlasViewMode::Clips:
-		//mClipsWidget->onKeyPress(e);
-		break;
+			case AtlasViewMode::Cells:
+				mCellsWidget->onKeyPress(e);
+				break;
+			case AtlasViewMode::Pivot:
+				//mOriginView->onKeyPress(e);
+				break;
+			case AtlasViewMode::Clips:
+				mClipsWidget->onKeyPress(e);
+				break;
 		}
 	}
 
 	void QElangAtlasEditor::keyReleaseEvent(QKeyEvent* e) {
 		switch (mViewMode) {
-		case AtlasViewMode::Cells:
-		mCellsWidget->onKeyRelease(e);
-		break;
-		case AtlasViewMode::Pivot:
-		//mOriginView->onKeyRelease(e);
-		break;
-		case AtlasViewMode::Clips:
-		//ClipsWidget->onKeyRelease(e);
-		break;
+			case AtlasViewMode::Cells:
+				mCellsWidget->onKeyRelease(e);
+				break;
+			case AtlasViewMode::Pivot:
+				//mOriginView->onKeyRelease(e);
+				break;
+			case AtlasViewMode::Clips:
+				mClipsWidget->onKeyRelease(e);
+				break;
 		}
 	}
 
@@ -299,5 +330,13 @@ namespace el
 		} else {
 			ev->accept();
 		}
+	}
+	
+	bool QElangAtlasEditor::eventFilter(QObject* watched, QEvent* event) {
+		if (watched == qApp && event->type() == QEvent::ApplicationActivate) {
+			refresh();
+		}
+
+		return false;
 	}
 }
