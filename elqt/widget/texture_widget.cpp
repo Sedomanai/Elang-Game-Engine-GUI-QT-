@@ -182,9 +182,9 @@ namespace el
 			mMainCamTarget.to(vec3(startPosition, -1000.0f));
 			mMainCamTarget.resizeX(startScale);
 			mMainCamTarget.resizeY(startScale);
-			snapCamera();
 			
 			syncCameraTarget();
+			snapCamera();
 			syncScrollBars();
 
 			ui.view->update();

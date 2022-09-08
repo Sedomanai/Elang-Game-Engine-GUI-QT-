@@ -469,15 +469,15 @@ namespace el
 		update();
 	}
 
-	//void PivotView::onKeyPress(QKeyEvent* e) {
-	//	if (e->key() == Qt::Key::Key_Control || e->key() == Qt::Key::Key_Alt) {
-	//		onViewMouseMove();
-	//	}
-	//}
+	void PivotView::onKeyPress(QKeyEvent* e) {
+		if (e->key() == Qt::Key::Key_Control || e->key() == Qt::Key::Key_Alt) {
+			onViewMouseMove();
+		}
+	}
 
-	//void PivotView::onKeyRelease(QKeyEvent* e) {
-	//	if (e->key() == Qt::Key::Key_Alt || e->key() == Qt::Key::Key_Control) {
-	//		onViewMouseMove();
-	//	}
-	//}
+	void PivotView::onKeyRelease(QKeyEvent* e) {
+		if (e->key() == Qt::Key::Key_Alt || e->key() == Qt::Key::Key_Control) {
+			onViewMouseMove();
+		}
+	}
 }

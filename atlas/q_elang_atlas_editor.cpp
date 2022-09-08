@@ -5,6 +5,7 @@
 #include <tools/texture.h>
 #include <tools/material.h>
 #include <atlas/cells_widget.h>
+#include <atlas/pivot_widget.h>
 #include <atlas/clips_widget.h>
 #include <apparatus/asset_loader.h>
 
@@ -31,8 +32,8 @@ namespace el
 
 		setFocusPolicy(Qt::FocusPolicy::TabFocus);
 		connectActions();
-		debugTexture();
-		debugAtlas();
+		//debugTexture();
+		//debugAtlas();
 	}
 
 	void QElangAtlasEditor::showEvent(QShowEvent* e) {
@@ -73,50 +74,56 @@ namespace el
 	}
 
 	void QElangAtlasEditor::newAtlas() {
-		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->hasTexture());
-		auto& texdata = gAtlsUtil.currentMaterial->textures[0].get<AssetData>();
+		assert(gAtlsUtil.currentMaterial);
+		if (gAtlsUtil.currentMaterial->hasTexture()) {
 
-		if (texdata.inode != -1) {
-			auto atlas = gAtlsUtil.currentMaterial->textures[0]->atlas;
-			auto& data = atlas.get<AssetData>();
+			auto& texdata = gAtlsUtil.currentMaterial->textures[0].get<AssetData>();
 
-			fio::path path = QFileDialog::getSaveFileName(this, "New Atlas", "D:/Programming/_Elang/SimpleTest/Assets", "Atlas (*.atls)").toStdString();
+			if (texdata.inode != -1) {
+				auto atlas = gAtlsUtil.currentMaterial->textures[0]->atlas;
+				auto& data = atlas.get<AssetData>();
 
-			bool newAtlas = false;
-			if (!path.empty()) {
-				if (data.inode != el_file::identifier(path)) {
-					newAtlas = (askSaveMessage() != QMessageBox::Cancel);
-				} else {
-					newAtlas = QMessageBox::question(this, "Confirm New Atlas Overwrite",
-						tr("This will completely rewrite and reload the current atlas file.<br>Are you sure you want to do this?"),
-						QMessageBox::Yes | QMessageBox::No,
-						QMessageBox::Yes) == QMessageBox::Yes;
+				fio::path path = QFileDialog::getSaveFileName(this, "New Atlas", "D:/Programming/_Elang/SimpleTest/Assets", "Atlas (*.atls)").toStdString();
+
+				bool newAtlas = false;
+				if (!path.empty()) {
+					if (data.inode != el_file::identifier(path)) {
+						newAtlas = (askSaveMessage() != QMessageBox::Cancel);
+					} else {
+						newAtlas = QMessageBox::question(this, "Confirm New Atlas Overwrite",
+							tr("This will completely rewrite and reload the current atlas file.<br>Are you sure you want to do this?"),
+							QMessageBox::Yes | QMessageBox::No,
+							QMessageBox::Yes) == QMessageBox::Yes;
+					}
+				}
+
+				if (newAtlas) {
+					beginWaitProcess();
+					data.filePath = path;
+					atlas.get<GUIAsset>().filePath = path.filename();
+					auto& meta = atlas.get<AtlasMeta>();
+					atlas->unload(meta);
+					clearLists();
+					gProject.get_or_emplace<AssetLoaded>(atlas);
+					mCellsWidget->autoNewGenAtlas(atlas, 0, 10);
+					atlas->exportFile(path, meta);
+					data.inode = el_file::identifier(path);
+					data.lastWriteTime = fio::last_write_time(path);
+
+					if (atlas.has<AssetModified>())
+						atlas.remove<AssetModified>();
+					updateEditorTitle(atlas);
+					endWaitProcess();
 				}
 			}
+		} else {
+			QMessageBox::warning(this, "No texture to generate atlas.", "Please open a reference background texture first<br>before creating a new atlas.");
 
-			if (newAtlas) {
-				beginWaitProcess();
-				data.filePath = path;
-				atlas.get<GUIAsset>().filePath = path.filename();
-				auto& meta = atlas.get<AtlasMeta>();
-				atlas->unload(meta);
-				clearLists();
-				mCellsWidget->autoNewGenAtlas(atlas, 0, 10);
-				atlas->exportFile(path, meta);
-				gProject.get_or_emplace<AssetLoaded>(atlas);
-				data.inode = el_file::identifier(path);
-				data.lastWriteTime = fio::last_write_time(path);
-
-				if (atlas.has<AssetModified>())
-					atlas.remove<AssetModified>();
-				updateEditorTitle(atlas);
-				endWaitProcess();
-			}
 		}
 	}
 
 	void QElangAtlasEditor::openTexture() {
-		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->hasTexture());
+		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->textures[0]);
 		auto tex = gAtlsUtil.currentMaterial->textures[0];
 		auto& data = tex.get<AssetData>();
 
@@ -144,7 +151,7 @@ namespace el
 	}
 
 	void QElangAtlasEditor::openAtlas() {
-		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->hasTexture());
+		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->textures[0]);
 		auto atlas = gAtlsUtil.currentMaterial->textures[0]->atlas;
 		auto& data = atlas.get<AssetData>();
 
@@ -199,7 +206,7 @@ namespace el
 	}
 
 	void QElangAtlasEditor::refresh() {
-		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->hasTexture());
+		assert(gAtlsUtil.currentMaterial && gAtlsUtil.currentMaterial->textures[0]);
 		auto tex = gAtlsUtil.currentMaterial->textures[0];
 		if (tex.has<AssetLoaded>()) {
 			auto& data = tex.get<AssetData>();
@@ -295,7 +302,7 @@ namespace el
 				mCellsWidget->onKeyPress(e);
 				break;
 			case AtlasViewMode::Pivot:
-				//mOriginView->onKeyPress(e);
+				mPivotView->onKeyPress(e);
 				break;
 			case AtlasViewMode::Clips:
 				mClipsWidget->onKeyPress(e);
@@ -309,7 +316,7 @@ namespace el
 				mCellsWidget->onKeyRelease(e);
 				break;
 			case AtlasViewMode::Pivot:
-				//mOriginView->onKeyRelease(e);
+				mPivotView->onKeyRelease(e);
 				break;
 			case AtlasViewMode::Clips:
 				mClipsWidget->onKeyRelease(e);

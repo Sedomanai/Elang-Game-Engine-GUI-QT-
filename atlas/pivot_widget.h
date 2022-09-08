@@ -58,6 +58,9 @@ namespace el
 		void execGhostDialog();
 		void snapCamera();
 
+		void onKeyPress(QKeyEvent*);
+		void onKeyRelease(QKeyEvent*);
+
 		signal<> sig_Modified;
 	private:
 		asset<Camera> mMainCam;

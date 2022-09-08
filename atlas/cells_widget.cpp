@@ -663,10 +663,10 @@ namespace el
 	}
 
 	void CellsWidget::findCursorState() {
-		if (mMaterial && mMaterial->hasTexture() && mMaterial->textures[0].has<AssetLoaded>()) {
+		if (mMaterial && mMaterial->hasTexture()) {
 
 			auto pos = *mMainCam * gMouse.currentPosition();
-			if (!mAtlas && mAtlas.has<AssetLoaded>()) {
+			if (!(mAtlas && mAtlas.has<AssetLoaded>())) {
 				mTempCursor = Qt::ArrowCursor;
 				mCursorState = CursorState::eNone;
 				return;
