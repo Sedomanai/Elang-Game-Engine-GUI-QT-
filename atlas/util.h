@@ -22,6 +22,7 @@ namespace el
 		asset<Material> currentMaterial, ghostMaterial;
 		asset<Atlas> currentAtlas, ghostAtlas;
 		QListExtension* cellList, * clipList;
+		fio::path lastSearchHistory, backupDirectory;
 		vec2 globalPalettePositon;
 		float globalPaletteScale;
 

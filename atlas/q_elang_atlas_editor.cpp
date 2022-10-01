@@ -8,12 +8,31 @@
 #include <atlas/pivot_widget.h>
 #include <atlas/clips_widget.h>
 #include <apparatus/asset_loader.h>
+#include <common/string_algorithm.h>
 
 namespace el
 {
 	QElangAtlasEditor::QElangAtlasEditor(QWidget* parent)
 		: AtlasSetup(parent), mSuppressClose(false) {
 		cout << "Connecting Atlas Editor..." << endl;
+
+		string in;
+		if (el_file::load("../___gui/dat/data.config", in) == 0) {
+			el_string::iterate(in, '\n', [&](strview div, sizet index) {
+				el_string::tokenize(div, '=', [&](strview head, strview tail) {
+					if (head == "Last Search History") {
+						gAtlsUtil.lastSearchHistory = tail;
+					}
+				}); return false;
+			});
+		}
+
+		if (gAtlsUtil.lastSearchHistory.empty()) {
+			gAtlsUtil.lastSearchHistory = "D:/Programming/_Elang/SimpleTest/Assets";
+		}
+
+		gAtlsUtil.backupDirectory = "D:/Programming/_Elang/___gui/dat/backup";
+		fio::create_directories(gAtlsUtil.backupDirectory);
 
 		auto tex = gProject.make<AssetData>(-1, fio::path(), fio::file_time_type())
 			.add<TextureMeta>().add<Texture>().add<EditorAsset>().add<GUIAsset>("");
@@ -52,9 +71,10 @@ namespace el
 			auto atlas = gAtlsUtil.currentAtlas;
 			auto& data = atlas.get<AssetData>();
 			fio::path path =
-				QFileDialog::getSaveFileName(this, "Save Atlas", "D:/Programming/_Elang/SimpleTest/Assets", "Atlas (*.atls)").toStdString();
+				QFileDialog::getSaveFileName(this, "Save Atlas", gAtlsUtil.lastSearchHistory.generic_string().c_str(), "Atlas (*.atls)").toStdString();
 
 			if (!path.empty()) {
+				recordLastDirectoryHistory(path);
 				if (path == data.filePath) {
 					saveAtlas();
 				} else {
@@ -67,10 +87,11 @@ namespace el
 					if (atlas.has<AssetModified>())
 						atlas.remove<AssetModified>();
 					updateEditorTitle(atlas);
+					backupAtlas();
 					endWaitProcess();
 				}
 			}
-			});
+		});
 	}
 
 	void QElangAtlasEditor::newAtlas() {
@@ -83,10 +104,11 @@ namespace el
 				auto atlas = gAtlsUtil.currentMaterial->textures[0]->atlas;
 				auto& data = atlas.get<AssetData>();
 
-				fio::path path = QFileDialog::getSaveFileName(this, "New Atlas", "D:/Programming/_Elang/SimpleTest/Assets", "Atlas (*.atls)").toStdString();
-
+				fio::path path = QFileDialog::getSaveFileName(this, "New Atlas", gAtlsUtil.lastSearchHistory.generic_string().c_str(), "Atlas (*.atls)").toStdString();
+				
 				bool newAtlas = false;
 				if (!path.empty()) {
+					recordLastDirectoryHistory(path);
 					if (data.inode != el_file::identifier(path)) {
 						newAtlas = (askSaveMessage() != QMessageBox::Cancel);
 					} else {
@@ -113,6 +135,7 @@ namespace el
 					if (atlas.has<AssetModified>())
 						atlas.remove<AssetModified>();
 					updateEditorTitle(atlas);
+					backupAtlas();
 					endWaitProcess();
 				}
 			}
@@ -128,10 +151,11 @@ namespace el
 		auto& data = tex.get<AssetData>();
 
 		fio::path path =
-			QFileDialog::getOpenFileName(this, "Open Texture", "D:/Programming/_Elang/SimpleTest/Assets", "PNG (*.png)").toStdString();
+			QFileDialog::getOpenFileName(this, "Open Texture", gAtlsUtil.lastSearchHistory.generic_string().c_str(), "PNG (*.png)").toStdString();
 
 		beginWaitProcess();
 		if (!path.empty() && data.inode != el_file::identifier(path)) {
+			recordLastDirectoryHistory(path);
 			auto& meta = tex.get<TextureMeta>();
 			if (tex.has<AssetLoaded>())
 				tex->unload(meta);
@@ -156,9 +180,10 @@ namespace el
 		auto& data = atlas.get<AssetData>();
 
 		fio::path path =
-			QFileDialog::getOpenFileName(this, "Open Atlas", "D:/Programming/_Elang/SimpleTest/Assets", "Atlas (*.atls)").toStdString();
+			QFileDialog::getOpenFileName(this, "Open Atlas", gAtlsUtil.lastSearchHistory.generic_string().c_str(), "Atlas (*.atls)").toStdString();
 
 		if (!path.empty()) {
+			recordLastDirectoryHistory(path);
 			if (data.inode != el_file::identifier(path)) {
 				if (askSaveMessage() != QMessageBox::Cancel) {
 					beginWaitProcess();
@@ -197,12 +222,54 @@ namespace el
 			data.lastWriteTime = fio::last_write_time(data.filePath);
 			atlas.remove<AssetModified>();
 			updateEditorTitle(atlas);
+			backupAtlas();
 			endWaitProcess();
 		}
 	}
 
-	void QElangAtlasEditor::backupAtlas() {
+#define MAX_BACKUP 20
 
+	void QElangAtlasEditor::backupAtlas() {
+		string prefix = "backup_";
+		auto psize = prefix.size();
+		
+		sizet count = 0;
+		for (auto e : fio::directory_iterator(gAtlsUtil.backupDirectory)) {
+			if (e.is_regular_file() && e.path().extension() == ".atls")
+				count++;
+		}
+
+		for (auto e : fio::directory_iterator(gAtlsUtil.backupDirectory)) {
+			if (e.is_regular_file() && e.path().extension() == ".atls") {
+				if (count >= MAX_BACKUP) {
+					auto file = e.path().filename();
+
+					auto gstr = file.generic_string();
+					int a = gstr[psize] - '0';
+					int b = gstr[psize + 1] - '0';
+					int index = 10 * a + b;
+
+					if (index != 0) {
+						index--;
+						gstr[psize] = index / 10 + '0';
+						gstr[psize + 1] = index % 10 + '0';
+						fio::rename(e.path(), e.path().parent_path() / gstr);
+					};
+				}
+			}
+		}
+
+		if (count >= MAX_BACKUP)
+			count = 19;
+
+		auto atlas = gAtlsUtil.currentAtlas;
+		auto name = prefix;
+
+		if (count < 10)
+			name += '0';
+
+		name += std::to_string(count) + "_" + atlas.get<AssetData>().filePath.filename().generic_string();
+		atlas->exportFile(gAtlsUtil.backupDirectory / name, atlas.get<AtlasMeta>());
 	}
 
 	void QElangAtlasEditor::refresh() {
@@ -226,6 +293,13 @@ namespace el
 				//	QMessageBox::Yes);
 			}
 		}
+	}
+
+	void QElangAtlasEditor::recordLastDirectoryHistory(const fio::path& path) {
+		gAtlsUtil.lastSearchHistory = path.parent_path();
+		string out = "Last Search History=";
+		out.append(gAtlsUtil.lastSearchHistory.generic_string());
+		el_file::save("../___gui/dat/data.config", out);
 	}
 
 	void QElangAtlasEditor::debugTexture() {

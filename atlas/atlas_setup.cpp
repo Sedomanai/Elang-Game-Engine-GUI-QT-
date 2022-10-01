@@ -41,7 +41,8 @@ namespace el
 					gMouse.reset();
 					break;
 				case AtlasViewMode::Pivot:
-					mPivotToolbar->hide();
+					mPivotToolbar1->hide();
+					mPivotToolbar2->hide();
 					mPivotView->hideEditor();
 					gMouse.reset();
 					break;
@@ -58,7 +59,8 @@ namespace el
 				mCellsWidget->showEditor();
 			} else if (action == ui.actionPivotView) {
 				mViewMode = AtlasViewMode::Pivot;
-				mPivotToolbar->show();
+				mPivotToolbar1->show();
+				mPivotToolbar2->show();
 				mPivotView->showEditor();
 			} else if (action == ui.actionClipsView) {
 				mViewMode = AtlasViewMode::Clips;
@@ -118,7 +120,8 @@ namespace el
 
 		gAtlsUtil.clipList->hide();
 		mPivotView->hide();
-		mPivotToolbar->hide();
+		mPivotToolbar1->hide();
+		mPivotToolbar2->hide();
 		mClipsWidget->hide();
 		mClipsToolbar->hide();
 	}
@@ -176,22 +179,19 @@ namespace el
 	}
 
 	void AtlasSetup::setupPivotMode() {
-		mPivotToolbar = new QToolBar(this);
-		auto act = mPivotToolbar->addAction("Set Ghost", [&]() {
-			mPivotView->execGhostDialog();
-			});
+		mPivotToolbar1 = new QToolBar(this);
+		mPivotToolbar2 = new QToolBar(this);
 
-		mPivotToolbar->addSeparator();
-		auto left = mPivotToolbar->addAction("Cell Left", [&]() {
+		auto left = mPivotToolbar1->addAction("Cell Left", [&]() {
 			mPivotView->incrementPivot(-1, 0);
 			});
-		auto right = mPivotToolbar->addAction("Cell Right", [&]() {
+		auto right = mPivotToolbar1->addAction("Cell Right", [&]() {
 			mPivotView->incrementPivot(1, 0);
 			});
-		auto down = mPivotToolbar->addAction("Cell Down", [&]() {
+		auto down = mPivotToolbar1->addAction("Cell Down", [&]() {
 			mPivotView->incrementPivot(0, -1);
 			});
-		auto up = mPivotToolbar->addAction("Cell Up", [&]() {
+		auto up = mPivotToolbar1->addAction("Cell Up", [&]() {
 			mPivotView->incrementPivot(0, 1);
 			});
 		left->setShortcut(QKeySequence(Qt::Key_A));
@@ -199,31 +199,68 @@ namespace el
 		up->setShortcut(QKeySequence(Qt::Key_W));
 		down->setShortcut(QKeySequence(Qt::Key_S));
 
-		mPivotToolbar->addSeparator();
+		mPivotToolbar1->addSeparator();
 
-		auto prevCell = mPivotToolbar->addAction("Prev Cell", [&]() {
+		auto prevCell = mPivotToolbar1->addAction("Prev Cell", [&]() {
 			mPivotView->shiftCell(-1);
 			});
 		prevCell->setShortcut(QKeySequence(Qt::Key_Q));
-		auto nextCell = mPivotToolbar->addAction("Next Cell", [&]() {
+		auto nextCell = mPivotToolbar1->addAction("Next Cell", [&]() {
 			mPivotView->shiftCell(1);
 			});
 		nextCell->setShortcut(QKeySequence(Qt::Key_E));
 
-		mPivotToolbar->addSeparator();
-		auto prevGhost = mPivotToolbar->addAction("Previous Ghost", [&]() {
+		mPivotToolbar1->addSeparator();
+
+		auto recenterCam = mPivotToolbar1->addAction("Recenter Camera", [&]() {
+			mPivotView->recenterCamera();
+			});
+		recenterCam->setShortcut(QKeySequence(Qt::Key_G));
+
+		mPivotToolbar1->addSeparator();
+
+		auto act = mPivotToolbar2->addAction("Set Ghost", [&]() {
+			mPivotView->execGhostDialog();
+			});
+
+		mPivotToolbar2->addSeparator();
+
+		auto prevGhost = mPivotToolbar2->addAction("Previous Ghost", [&]() {
 			mPivotView->setPreviousGhost();
 			});
 		prevGhost->setShortcut(QKeySequence(Qt::Key_V));
-		auto captureGhost = mPivotToolbar->addAction("Capture Ghost", [&]() {
+		auto captureGhost = mPivotToolbar2->addAction("Capture Ghost", [&]() {
 			mPivotView->captureGhost();
 			});
 		captureGhost->setShortcut(QKeySequence(Qt::Key_C));
-		auto paletteGhost = mPivotToolbar->addAction("Palette Ghost", [&]() {
+		auto paletteGhost = mPivotToolbar2->addAction("Palette Ghost", [&]() {
 			mPivotView->ghostPalette();
 			});
 		paletteGhost->setShortcut(QKeySequence(Qt::Key_Space));
 
+		mPivotToolbar2->addSeparator();
+
+		auto backGhost = mPivotToolbar2->addAction("Back Ghost");
+		backGhost->setShortcut(QKeySequence(Qt::Key_B));
+		backGhost->setCheckable(true);
+		auto frontGhost = mPivotToolbar2->addAction("Front Ghost");
+		frontGhost->setShortcut(QKeySequence(Qt::Key_F));
+		frontGhost->setCheckable(true);
+
+		auto ghostPosAction = new QActionGroup(this);
+		ghostPosAction->addAction(backGhost);
+		ghostPosAction->addAction(frontGhost);
+		ghostPosAction->setExclusionPolicy(QActionGroup::ExclusionPolicy::Exclusive);
+		connect(ghostPosAction, &QActionGroup::triggered, [&](QAction* action) {
+			if (action->text() == "Back Ghost") {
+				mPivotView->setGhostPosition(false);
+			} else if (action->text() == "Front Ghost") {
+				mPivotView->setGhostPosition(true);
+			}
+		});
+		ghostPosAction->setEnabled(true);
+
+		mPivotToolbar2->addSeparator();
 
 		mPivotView = new PivotView(this);
 		mPivotView->setMinimumWidth(750);
@@ -231,7 +268,9 @@ namespace el
 		mViewLayout->addWidget(mPivotView);
 
 		addToolBarBreak();
-		addToolBar(Qt::ToolBarArea::TopToolBarArea, mPivotToolbar);
+		addToolBar(Qt::ToolBarArea::TopToolBarArea, mPivotToolbar1);
+		addToolBarBreak();
+		addToolBar(Qt::ToolBarArea::TopToolBarArea, mPivotToolbar2);
 	}
 
 
@@ -253,8 +292,16 @@ namespace el
 				});
 
 			mClipsToolbar->addSeparator();
+
+			auto recenterCam = mClipsToolbar->addAction("Recenter Camera", [&]() {
+				mClipsWidget->recenterCamera();
+				});
+			recenterCam->setShortcut(QKeySequence(Qt::Key_G));
+			mClipsToolbar->addSeparator();
+
 			mClipsToolbar->addWidget(label);
 			mClipsToolbar->addWidget(box);
+			mClipsToolbar->addSeparator();
 
 			mClipsWidget = new ClipsWidget(this);
 			mClipsWidget->setMinimumWidth(750);

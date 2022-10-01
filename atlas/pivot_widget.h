@@ -52,11 +52,14 @@ namespace el
 		void captureGhost();
 		void ghostPalette();
 
+		void setGhostPosition(bool front);
+
 		void release();
 		void loop();
 		void safeCreateObjects();
 		void execGhostDialog();
 		void snapCamera();
+		void recenterCamera();
 
 		void onKeyPress(QKeyEvent*);
 		void onKeyRelease(QKeyEvent*);

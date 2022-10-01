@@ -24,6 +24,7 @@ namespace el
 		void saveAtlas();
 		void backupAtlas();
 		void refresh();
+		void recordLastDirectoryHistory(const fio::path&);
 
 		void debugTexture();
 		void debugAtlas();

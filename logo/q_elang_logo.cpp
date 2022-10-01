@@ -14,6 +14,7 @@ namespace el
 
 		ui.setupUi(this);
 
+		cout << "Initiating..." << endl;
 		if (mLogo.load("../___gui/logo.png")) {
 			mWidget = new QWidget();
 			mWidget->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -43,8 +44,10 @@ namespace el
 			if (mCounter >= 0) {
 				mCounter--;
 				if (mCounter == 0 && mWidget) {
+					cout << "Initializing GLEW..." << endl;
 					glewInit();
 					AssetLoader loader;
+					cout << "Importing Native GUI..." << endl;
 					loader.initNativeGUI();
 					loader.importAllNativeGUIAssets();
 					sig_Loaded.invoke();
@@ -63,23 +66,4 @@ namespace el
 	
 
 	}
-
-
-	//asset<Material> QElangLogo::importSplashLogo(fio::path absPath) {
-	//	auto tex = gProject.make<Texture>();
-	//	tex->importFile(absPath, *tex.add<TextureMeta>());
-	//	tex.add<Material>()->setTexture(tex, 0);
-	//	tex.add<Painter>()->init();
-
-
-	//	return mat;
-	//}
-
-	//void QElangLogo::unloadSplashLogo(asset<Material> mat) {
-	//	if (mat->hasTexture()) {
-	//		auto tex = mat->textures[0];
-	//		tex->unload(tex.get<TextureMeta>());
-	//		tex.destroy();
-	//	} mat.destroy();
-	//}
 }

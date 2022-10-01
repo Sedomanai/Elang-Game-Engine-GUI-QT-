@@ -628,6 +628,11 @@ namespace el
 		return pos;
 	}
 
+	void ClipsWidget::recenterCamera() {
+		mViewCamTarget.to(0.0f, 0.0f, 0.0f);
+		tweenCameraInput(mViewCamTween, *mViewCam, mViewCamTarget);
+	}
+
 	void ClipsWidget::safeCreateViewObjects() {
 		if (!mViewCam) {
 			ui.view->makeCurrent();

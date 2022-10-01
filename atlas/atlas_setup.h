@@ -25,7 +25,7 @@ namespace el
 		QToolBar* mCellToolbar;
 		CellsWidget* mCellsWidget;
 
-		QToolBar* mPivotToolbar;
+		QToolBar* mPivotToolbar1, * mPivotToolbar2;
 		PivotView* mPivotView;
 
 		QToolBar* mClipsToolbar;

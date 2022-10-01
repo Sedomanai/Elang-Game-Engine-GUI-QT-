@@ -47,6 +47,7 @@ namespace el
 		void showEditor();
 		void hideEditor();
 		void animLoop();
+		void recenterCamera();
 		void loop();
 
 		void createClip();

@@ -38,6 +38,11 @@ namespace el
 		setupCameraTween(mMainCamTween);
 	}
 
+	void PivotView::recenterCamera() {
+		mMainCamTarget.to(0.0f, 0.0f, 0.0f);
+		tweenCameraInput(mMainCamTween, *mMainCam, mMainCamTarget);
+	}
+
 	void PivotView::loop() {
 		if (isActiveWindow() && mMainCam) {
 			if (mMainCamTween.progress() != 1.0f) {
@@ -466,6 +471,11 @@ namespace el
 		dialog.exec();
 		gAtlsUtil.globalPalettePositon = palette.camPosition();
 		gAtlsUtil.globalPaletteScale = palette.camScale();
+		update();
+	}
+
+	void PivotView::setGhostPosition(bool front) {
+		mGhostData.order = front ? ElangAtlasGhostData::eOrder::FRONT : ElangAtlasGhostData::eOrder::BACK;
 		update();
 	}
 

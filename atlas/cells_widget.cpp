@@ -185,6 +185,7 @@ namespace el
 			}
 			if (gMouse.state(1) == eInput::Hold || gMouse.wheel() != 0.0f) {
 				updateAllHolderCheck();
+				findCursorState();
 			}
 			if (mMainCamTween.progress() != 1.0f) {
 				mMainCamTween.step(1);
@@ -536,8 +537,10 @@ namespace el
 			}
 			});
 
+		// This is common with pivot_widget
 		connect(gAtlsUtil.cellList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
-			if (isVisible() && mAtlas && mAtlas.has<AssetLoaded>()) {
+			auto atlas = gAtlsUtil.currentAtlas;
+			if (atlas && atlas.has<AssetLoaded>()) {
 				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
 				auto& data = item->holder.get<SubAssetData>();
 				auto name = gAtlsUtil.cellList->
@@ -553,7 +556,7 @@ namespace el
 					sig_Modified.invoke();
 				}
 			}
-			});
+		});
 	}
 
 	void CellsWidget::combineCells() {
@@ -663,7 +666,7 @@ namespace el
 	}
 
 	void CellsWidget::findCursorState() {
-		if (mMaterial && mMaterial->hasTexture()) {
+		if (mMaterial && mMaterial->hasTexture() && cursor().shape() != Qt::CursorShape::SizeAllCursor) {
 
 			auto pos = *mMainCam * gMouse.currentPosition();
 			if (!(mAtlas && mAtlas.has<AssetLoaded>())) {
