@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'q_ghost_dialog.ui'
 **
-** Created by: Qt User Interface Compiler version 6.3.1
+** Created by: Qt User Interface Compiler version 6.4.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -57,36 +57,36 @@ public:
     void setupUi(QWidget *GhostDialogUI)
     {
         if (GhostDialogUI->objectName().isEmpty())
-            GhostDialogUI->setObjectName(QString::fromUtf8("GhostDialogUI"));
+            GhostDialogUI->setObjectName("GhostDialogUI");
         GhostDialogUI->resize(197, 231);
         horizontalLayout_3 = new QHBoxLayout(GhostDialogUI);
         horizontalLayout_3->setSpacing(0);
         horizontalLayout_3->setContentsMargins(11, 11, 11, 11);
-        horizontalLayout_3->setObjectName(QString::fromUtf8("horizontalLayout_3"));
+        horizontalLayout_3->setObjectName("horizontalLayout_3");
         horizontalLayout_3->setContentsMargins(0, 0, 0, 0);
         verticalLayout_5 = new QVBoxLayout();
         verticalLayout_5->setSpacing(4);
-        verticalLayout_5->setObjectName(QString::fromUtf8("verticalLayout_5"));
+        verticalLayout_5->setObjectName("verticalLayout_5");
         verticalLayout_5->setContentsMargins(-1, 4, -1, -1);
         typeBox = new QGroupBox(GhostDialogUI);
-        typeBox->setObjectName(QString::fromUtf8("typeBox"));
+        typeBox->setObjectName("typeBox");
         typeBox->setMaximumSize(QSize(16777215, 120));
         verticalLayout_3 = new QVBoxLayout(typeBox);
         verticalLayout_3->setSpacing(2);
         verticalLayout_3->setContentsMargins(11, 11, 11, 11);
-        verticalLayout_3->setObjectName(QString::fromUtf8("verticalLayout_3"));
+        verticalLayout_3->setObjectName("verticalLayout_3");
         verticalLayout_3->setContentsMargins(4, 2, 4, 2);
         gridLayout = new QGridLayout();
         gridLayout->setSpacing(6);
-        gridLayout->setObjectName(QString::fromUtf8("gridLayout"));
+        gridLayout->setObjectName("gridLayout");
         gridLayout->setHorizontalSpacing(6);
         gridLayout->setVerticalSpacing(0);
         gridLayout->setContentsMargins(4, 0, 4, -1);
         noneRadio = new QRadioButton(typeBox);
         typeGroup = new QButtonGroup(GhostDialogUI);
-        typeGroup->setObjectName(QString::fromUtf8("typeGroup"));
+        typeGroup->setObjectName("typeGroup");
         typeGroup->addButton(noneRadio);
-        noneRadio->setObjectName(QString::fromUtf8("noneRadio"));
+        noneRadio->setObjectName("noneRadio");
         noneRadio->setEnabled(true);
         noneRadio->setChecked(true);
 
@@ -94,19 +94,19 @@ public:
 
         prevRadio = new QRadioButton(typeBox);
         typeGroup->addButton(prevRadio);
-        prevRadio->setObjectName(QString::fromUtf8("prevRadio"));
+        prevRadio->setObjectName("prevRadio");
 
         gridLayout->addWidget(prevRadio, 0, 1, 1, 1);
 
         indexRadio = new QRadioButton(typeBox);
         typeGroup->addButton(indexRadio);
-        indexRadio->setObjectName(QString::fromUtf8("indexRadio"));
+        indexRadio->setObjectName("indexRadio");
 
         gridLayout->addWidget(indexRadio, 1, 0, 1, 1);
 
         externRadio = new QRadioButton(typeBox);
         typeGroup->addButton(externRadio);
-        externRadio->setObjectName(QString::fromUtf8("externRadio"));
+        externRadio->setObjectName("externRadio");
 
         gridLayout->addWidget(externRadio, 1, 1, 1, 1);
 
@@ -117,29 +117,29 @@ public:
         verticalLayout_5->addWidget(typeBox);
 
         posBox = new QGroupBox(GhostDialogUI);
-        posBox->setObjectName(QString::fromUtf8("posBox"));
+        posBox->setObjectName("posBox");
         posBox->setMaximumSize(QSize(16777215, 50));
         verticalLayout_2 = new QVBoxLayout(posBox);
         verticalLayout_2->setSpacing(2);
         verticalLayout_2->setContentsMargins(11, 11, 11, 11);
-        verticalLayout_2->setObjectName(QString::fromUtf8("verticalLayout_2"));
+        verticalLayout_2->setObjectName("verticalLayout_2");
         verticalLayout_2->setContentsMargins(4, 2, 4, 2);
         horizontalLayout = new QHBoxLayout();
         horizontalLayout->setSpacing(6);
-        horizontalLayout->setObjectName(QString::fromUtf8("horizontalLayout"));
+        horizontalLayout->setObjectName("horizontalLayout");
         horizontalLayout->setContentsMargins(4, -1, 4, -1);
         backRadio = new QRadioButton(posBox);
         posGroup = new QButtonGroup(GhostDialogUI);
-        posGroup->setObjectName(QString::fromUtf8("posGroup"));
+        posGroup->setObjectName("posGroup");
         posGroup->addButton(backRadio);
-        backRadio->setObjectName(QString::fromUtf8("backRadio"));
+        backRadio->setObjectName("backRadio");
         backRadio->setChecked(true);
 
         horizontalLayout->addWidget(backRadio);
 
         frontRadio = new QRadioButton(posBox);
         posGroup->addButton(frontRadio);
-        frontRadio->setObjectName(QString::fromUtf8("frontRadio"));
+        frontRadio->setObjectName("frontRadio");
 
         horizontalLayout->addWidget(frontRadio);
 
@@ -150,24 +150,24 @@ public:
         verticalLayout_5->addWidget(posBox);
 
         indexBox = new QGroupBox(GhostDialogUI);
-        indexBox->setObjectName(QString::fromUtf8("indexBox"));
+        indexBox->setObjectName("indexBox");
         verticalLayout = new QVBoxLayout(indexBox);
         verticalLayout->setSpacing(2);
         verticalLayout->setContentsMargins(11, 11, 11, 11);
-        verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
+        verticalLayout->setObjectName("verticalLayout");
         verticalLayout->setContentsMargins(4, 2, 4, 8);
         texLayout = new QHBoxLayout();
         texLayout->setSpacing(4);
-        texLayout->setObjectName(QString::fromUtf8("texLayout"));
+        texLayout->setObjectName("texLayout");
         texLayout->setContentsMargins(4, -1, 4, -1);
         texButton = new QPushButton(indexBox);
-        texButton->setObjectName(QString::fromUtf8("texButton"));
+        texButton->setObjectName("texButton");
         texButton->setMaximumSize(QSize(52, 16777215));
 
         texLayout->addWidget(texButton);
 
         texLabel = new QLabel(indexBox);
-        texLabel->setObjectName(QString::fromUtf8("texLabel"));
+        texLabel->setObjectName("texLabel");
 
         texLayout->addWidget(texLabel);
 
@@ -176,16 +176,16 @@ public:
 
         atlasLayout = new QHBoxLayout();
         atlasLayout->setSpacing(4);
-        atlasLayout->setObjectName(QString::fromUtf8("atlasLayout"));
+        atlasLayout->setObjectName("atlasLayout");
         atlasLayout->setContentsMargins(4, -1, 4, -1);
         atlasButton = new QPushButton(indexBox);
-        atlasButton->setObjectName(QString::fromUtf8("atlasButton"));
+        atlasButton->setObjectName("atlasButton");
         atlasButton->setMaximumSize(QSize(52, 16777215));
 
         atlasLayout->addWidget(atlasButton);
 
         atlasLabel = new QLabel(indexBox);
-        atlasLabel->setObjectName(QString::fromUtf8("atlasLabel"));
+        atlasLabel->setObjectName("atlasLabel");
 
         atlasLayout->addWidget(atlasLabel);
 
@@ -194,16 +194,16 @@ public:
 
         cellLayout = new QHBoxLayout();
         cellLayout->setSpacing(4);
-        cellLayout->setObjectName(QString::fromUtf8("cellLayout"));
+        cellLayout->setObjectName("cellLayout");
         cellLayout->setContentsMargins(4, -1, 4, -1);
         cellButton = new QPushButton(indexBox);
-        cellButton->setObjectName(QString::fromUtf8("cellButton"));
+        cellButton->setObjectName("cellButton");
         cellButton->setMaximumSize(QSize(52, 16777215));
 
         cellLayout->addWidget(cellButton);
 
         cellLabel = new QLabel(indexBox);
-        cellLabel->setObjectName(QString::fromUtf8("cellLabel"));
+        cellLabel->setObjectName("cellLabel");
 
         cellLayout->addWidget(cellLabel);
 

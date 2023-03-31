@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'clips_widget.ui'
 **
-** Created by: Qt User Interface Compiler version 6.3.1
+** Created by: Qt User Interface Compiler version 6.4.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -43,18 +43,18 @@ public:
     void setupUi(QWidget *ClipsWidgetUI)
     {
         if (ClipsWidgetUI->objectName().isEmpty())
-            ClipsWidgetUI->setObjectName(QString::fromUtf8("ClipsWidgetUI"));
+            ClipsWidgetUI->setObjectName("ClipsWidgetUI");
         ClipsWidgetUI->resize(870, 595);
         verticalLayout_2 = new QVBoxLayout(ClipsWidgetUI);
         verticalLayout_2->setSpacing(0);
         verticalLayout_2->setContentsMargins(11, 11, 11, 11);
-        verticalLayout_2->setObjectName(QString::fromUtf8("verticalLayout_2"));
+        verticalLayout_2->setObjectName("verticalLayout_2");
         verticalLayout_2->setContentsMargins(0, 0, 0, 0);
         verticalLayout = new QVBoxLayout();
         verticalLayout->setSpacing(2);
-        verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
+        verticalLayout->setObjectName("verticalLayout");
         view = new el::QElangViewSignaled(ClipsWidgetUI);
-        view->setObjectName(QString::fromUtf8("view"));
+        view->setObjectName("view");
         QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);
         sizePolicy.setHorizontalStretch(0);
         sizePolicy.setVerticalStretch(0);
@@ -65,9 +65,9 @@ public:
 
         horizontalLayout_2 = new QHBoxLayout();
         horizontalLayout_2->setSpacing(6);
-        horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
+        horizontalLayout_2->setObjectName("horizontalLayout_2");
         label = new QLabel(ClipsWidgetUI);
-        label->setObjectName(QString::fromUtf8("label"));
+        label->setObjectName("label");
         QSizePolicy sizePolicy1(QSizePolicy::Preferred, QSizePolicy::Minimum);
         sizePolicy1.setHorizontalStretch(0);
         sizePolicy1.setVerticalStretch(0);
@@ -78,7 +78,7 @@ public:
         horizontalLayout_2->addWidget(label);
 
         speedBox = new QDoubleSpinBox(ClipsWidgetUI);
-        speedBox->setObjectName(QString::fromUtf8("speedBox"));
+        speedBox->setObjectName("speedBox");
         QSizePolicy sizePolicy2(QSizePolicy::Minimum, QSizePolicy::Minimum);
         sizePolicy2.setHorizontalStretch(0);
         sizePolicy2.setVerticalStretch(0);
@@ -88,7 +88,7 @@ public:
         horizontalLayout_2->addWidget(speedBox);
 
         repeatBox = new QCheckBox(ClipsWidgetUI);
-        repeatBox->setObjectName(QString::fromUtf8("repeatBox"));
+        repeatBox->setObjectName("repeatBox");
         QSizePolicy sizePolicy3(QSizePolicy::Minimum, QSizePolicy::Maximum);
         sizePolicy3.setHorizontalStretch(0);
         sizePolicy3.setVerticalStretch(0);
@@ -103,7 +103,7 @@ public:
         horizontalLayout_2->addItem(horizontalSpacer_2);
 
         playButton = new QPushButton(ClipsWidgetUI);
-        playButton->setObjectName(QString::fromUtf8("playButton"));
+        playButton->setObjectName("playButton");
 
         horizontalLayout_2->addWidget(playButton);
 
@@ -115,7 +115,7 @@ public:
         verticalLayout->addLayout(horizontalLayout_2);
 
         reel = new el::QElangViewSignaled(ClipsWidgetUI);
-        reel->setObjectName(QString::fromUtf8("reel"));
+        reel->setObjectName("reel");
         sizePolicy.setHeightForWidth(reel->sizePolicy().hasHeightForWidth());
         reel->setSizePolicy(sizePolicy);
         reel->setMaximumSize(QSize(16777215, 100));
@@ -123,7 +123,7 @@ public:
         verticalLayout->addWidget(reel);
 
         scroll = new QScrollBar(ClipsWidgetUI);
-        scroll->setObjectName(QString::fromUtf8("scroll"));
+        scroll->setObjectName("scroll");
         scroll->setOrientation(Qt::Horizontal);
 
         verticalLayout->addWidget(scroll);

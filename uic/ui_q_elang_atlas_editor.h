@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'q_elang_atlas_editor.ui'
 **
-** Created by: Qt User Interface Compiler version 6.3.1
+** Created by: Qt User Interface Compiler version 6.4.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -49,36 +49,36 @@ public:
     void setupUi(QMainWindow *AtlasEditorUI)
     {
         if (AtlasEditorUI->objectName().isEmpty())
-            AtlasEditorUI->setObjectName(QString::fromUtf8("AtlasEditorUI"));
+            AtlasEditorUI->setObjectName("AtlasEditorUI");
         AtlasEditorUI->resize(800, 600);
         actionNewAtlas = new QAction(AtlasEditorUI);
-        actionNewAtlas->setObjectName(QString::fromUtf8("actionNewAtlas"));
+        actionNewAtlas->setObjectName("actionNewAtlas");
         actionOpenTexture = new QAction(AtlasEditorUI);
-        actionOpenTexture->setObjectName(QString::fromUtf8("actionOpenTexture"));
+        actionOpenTexture->setObjectName("actionOpenTexture");
         actionOpenAtlas = new QAction(AtlasEditorUI);
-        actionOpenAtlas->setObjectName(QString::fromUtf8("actionOpenAtlas"));
+        actionOpenAtlas->setObjectName("actionOpenAtlas");
         actionSaveAtlas = new QAction(AtlasEditorUI);
-        actionSaveAtlas->setObjectName(QString::fromUtf8("actionSaveAtlas"));
+        actionSaveAtlas->setObjectName("actionSaveAtlas");
         actionCellsView = new QAction(AtlasEditorUI);
-        actionCellsView->setObjectName(QString::fromUtf8("actionCellsView"));
+        actionCellsView->setObjectName("actionCellsView");
         actionCellsView->setCheckable(true);
         actionCellsView->setChecked(true);
         actionPivotView = new QAction(AtlasEditorUI);
-        actionPivotView->setObjectName(QString::fromUtf8("actionPivotView"));
+        actionPivotView->setObjectName("actionPivotView");
         actionPivotView->setCheckable(true);
         actionClipsView = new QAction(AtlasEditorUI);
-        actionClipsView->setObjectName(QString::fromUtf8("actionClipsView"));
+        actionClipsView->setObjectName("actionClipsView");
         actionClipsView->setCheckable(true);
         actionSaveAtlasAs = new QAction(AtlasEditorUI);
-        actionSaveAtlasAs->setObjectName(QString::fromUtf8("actionSaveAtlasAs"));
+        actionSaveAtlasAs->setObjectName("actionSaveAtlasAs");
         centralwidget = new QWidget(AtlasEditorUI);
-        centralwidget->setObjectName(QString::fromUtf8("centralwidget"));
+        centralwidget->setObjectName("centralwidget");
         horizontalLayout = new QHBoxLayout(centralwidget);
         horizontalLayout->setSpacing(2);
-        horizontalLayout->setObjectName(QString::fromUtf8("horizontalLayout"));
+        horizontalLayout->setObjectName("horizontalLayout");
         horizontalLayout->setContentsMargins(2, 2, 2, 2);
         frame = new QFrame(centralwidget);
-        frame->setObjectName(QString::fromUtf8("frame"));
+        frame->setObjectName("frame");
         frame->setFrameShape(QFrame::StyledPanel);
         frame->setFrameShadow(QFrame::Raised);
 
@@ -86,24 +86,24 @@ public:
 
         AtlasEditorUI->setCentralWidget(centralwidget);
         menubar = new QMenuBar(AtlasEditorUI);
-        menubar->setObjectName(QString::fromUtf8("menubar"));
+        menubar->setObjectName("menubar");
         menubar->setGeometry(QRect(0, 0, 800, 22));
         menuFile = new QMenu(menubar);
-        menuFile->setObjectName(QString::fromUtf8("menuFile"));
+        menuFile->setObjectName("menuFile");
         menuNew = new QMenu(menuFile);
-        menuNew->setObjectName(QString::fromUtf8("menuNew"));
+        menuNew->setObjectName("menuNew");
         menuOpen = new QMenu(menuFile);
-        menuOpen->setObjectName(QString::fromUtf8("menuOpen"));
+        menuOpen->setObjectName("menuOpen");
         menuEdit = new QMenu(menubar);
-        menuEdit->setObjectName(QString::fromUtf8("menuEdit"));
+        menuEdit->setObjectName("menuEdit");
         menuView = new QMenu(menubar);
-        menuView->setObjectName(QString::fromUtf8("menuView"));
+        menuView->setObjectName("menuView");
         AtlasEditorUI->setMenuBar(menubar);
         statusbar = new QStatusBar(AtlasEditorUI);
-        statusbar->setObjectName(QString::fromUtf8("statusbar"));
+        statusbar->setObjectName("statusbar");
         AtlasEditorUI->setStatusBar(statusbar);
         toolBar = new QToolBar(AtlasEditorUI);
-        toolBar->setObjectName(QString::fromUtf8("toolBar"));
+        toolBar->setObjectName("toolBar");
         AtlasEditorUI->addToolBar(Qt::TopToolBarArea, toolBar);
 
         menubar->addAction(menuFile->menuAction());

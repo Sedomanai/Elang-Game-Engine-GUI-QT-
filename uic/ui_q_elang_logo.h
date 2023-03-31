@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'q_elang_logo.ui'
 **
-** Created by: Qt User Interface Compiler version 6.3.1
+** Created by: Qt User Interface Compiler version 6.4.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -26,15 +26,15 @@ public:
     void setupUi(QWidget *QElangLogoClass)
     {
         if (QElangLogoClass->objectName().isEmpty())
-            QElangLogoClass->setObjectName(QString::fromUtf8("QElangLogoClass"));
+            QElangLogoClass->setObjectName("QElangLogoClass");
         QElangLogoClass->resize(1108, 659);
         gridLayout = new QGridLayout(QElangLogoClass);
         gridLayout->setSpacing(6);
         gridLayout->setContentsMargins(11, 11, 11, 11);
-        gridLayout->setObjectName(QString::fromUtf8("gridLayout"));
+        gridLayout->setObjectName("gridLayout");
         gridLayout->setContentsMargins(2, 2, 2, 2);
         openGLWidget = new el::QElangViewSignaled(QElangLogoClass);
-        openGLWidget->setObjectName(QString::fromUtf8("openGLWidget"));
+        openGLWidget->setObjectName("openGLWidget");
 
         gridLayout->addWidget(openGLWidget, 1, 0, 1, 1);
 
