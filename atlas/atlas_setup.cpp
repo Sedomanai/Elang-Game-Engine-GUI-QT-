@@ -92,8 +92,8 @@ namespace el
 	}
 
 	void AtlasSetup::setupList() {
-		gAtlsUtil.cellList = new QListExtension(this);
-		auto& cells = *gAtlsUtil.cellList;
+		gAtlasUtil.cellList = new QListExtension(this);
+		auto& cells = *gAtlasUtil.cellList;
 		cells.setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
 		cells.setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
 		cells.setDefaultDropAction(Qt::DropAction::MoveAction);
@@ -102,8 +102,8 @@ namespace el
 		cells.setMaximumWidth(220);
 		mListLayout->addWidget(&cells);
 
-		gAtlsUtil.clipList = new QListExtension(this);
-		auto& clips = *gAtlsUtil.clipList;
+		gAtlasUtil.clipList = new QListExtension(this);
+		auto& clips = *gAtlasUtil.clipList;
 		clips.setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
 		clips.setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
 		clips.setDefaultDropAction(Qt::DropAction::MoveAction);
@@ -118,7 +118,7 @@ namespace el
 		mViewMode = AtlasViewMode::Cells;
 		mCellsWidget->showEditor();
 
-		gAtlsUtil.clipList->hide();
+		gAtlasUtil.clipList->hide();
 		mPivotView->hide();
 		mPivotToolbar1->hide();
 		mPivotToolbar2->hide();
@@ -129,71 +129,34 @@ namespace el
 	void AtlasSetup::setupCellMode() {
 		mCellToolbar = new QToolBar(this);
 
-		//auto autogen = mCellToolbar->addAction("Auto Atlas", [&]() {
-		//	//mAutoGen->exec();
-		//	//if (mAutoGen->gen) {
-		//	//	mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
-		//	//	//TODO: add warning, will remove all clips and cells
-		//	//	mClipsWidget->clearAllViews();
+		auto autocell = mCellToolbar->addAction("Auto Cell", [&]() { mCellsWidget->autoCreateCell(); }); 
+		autocell->setShortcut(QKeySequence(Qt::Key_R));
+		mCellToolbar->addSeparator();
 
-		//	//	mAutoGen->gen = false;
-		//	//}
-		//}); 
-		//autogen->setShortcut(QKeySequence(Qt::Key_F));
+		auto combine = mCellToolbar->addAction("Combine Cells", [&]() { mCellsWidget->combineCells(); });
+		combine->setShortcut(QKeySequence(Qt::Key_C));
 
-		//auto sort = mCellToolbar->addAction("Sort List", [&]() {
-		//	mAutoGen->exec();
-		//	if (mAutoGen->gen) {
-		//		mCellsWidget->autoGenCells(mAutoGen->sortorder, mAutoGen->margin);
-		//		mAutoGen->gen = false;
-		//	}
-		//}); autogen->setShortcut(QKeySequence(Qt::Key_R));
+		auto remove = mCellToolbar->addAction("Remove Cells", [&]() { mCellsWidget->deleteSelected(); });
+		remove->setShortcut(QKeySequence(Qt::Key_Delete));
+		mCellToolbar->addSeparator();
 
-		auto autocell = mCellToolbar->addAction("Auto Cell", [&]() {
-			mCellsWidget->autoCreateCell();
-			}); autocell->setShortcut(QKeySequence(Qt::Key_R));
+		mCellsWidget = new CellsWidget(this);
+		mCellsWidget->setMinimumWidth(750);
+		mCellsWidget->sig_Modified.connect([&]() { setModified(); });
+		mViewLayout->addWidget(mCellsWidget);
 
-			mCellToolbar->addSeparator();
-
-			auto combine = mCellToolbar->addAction("Combine Cells", [&]() {
-				mCellsWidget->combineCells();
-				});
-			combine->setShortcut(QKeySequence(Qt::Key_C));
-
-			auto remove = mCellToolbar->addAction("Remove Cells", [&]() {
-				mCellsWidget->deleteSelected();
-				});
-			remove->setShortcut(QKeySequence(Qt::Key_Delete));
-
-			mCellToolbar->addSeparator();
-
-			mCellsWidget = new CellsWidget(this);
-			mCellsWidget->setMinimumWidth(750);
-			//mCellsWidget->view()->setStage(&mStage);
-			mCellsWidget->sig_Modified.connect([&]() { setModified(); });
-			mViewLayout->addWidget(mCellsWidget);
-
-
-			addToolBarBreak();
-			addToolBar(Qt::ToolBarArea::TopToolBarArea, mCellToolbar);
+		addToolBarBreak();
+		addToolBar(Qt::ToolBarArea::TopToolBarArea, mCellToolbar);
 	}
 
 	void AtlasSetup::setupPivotMode() {
 		mPivotToolbar1 = new QToolBar(this);
 		mPivotToolbar2 = new QToolBar(this);
 
-		auto left = mPivotToolbar1->addAction("Cell Left", [&]() {
-			mPivotView->incrementPivot(-1, 0);
-			});
-		auto right = mPivotToolbar1->addAction("Cell Right", [&]() {
-			mPivotView->incrementPivot(1, 0);
-			});
-		auto down = mPivotToolbar1->addAction("Cell Down", [&]() {
-			mPivotView->incrementPivot(0, -1);
-			});
-		auto up = mPivotToolbar1->addAction("Cell Up", [&]() {
-			mPivotView->incrementPivot(0, 1);
-			});
+		auto left = mPivotToolbar1->addAction("Cell Left", [&]() { mPivotView->incrementPivot(-1, 0); });
+		auto right = mPivotToolbar1->addAction("Cell Right", [&]() { mPivotView->incrementPivot(1, 0); });
+		auto down = mPivotToolbar1->addAction("Cell Down", [&]() { mPivotView->incrementPivot(0, -1); });
+		auto up = mPivotToolbar1->addAction("Cell Up", [&]() { mPivotView->incrementPivot(0, 1); });
 		left->setShortcut(QKeySequence(Qt::Key_A));
 		right->setShortcut(QKeySequence(Qt::Key_D));
 		up->setShortcut(QKeySequence(Qt::Key_W));
@@ -201,41 +164,27 @@ namespace el
 
 		mPivotToolbar1->addSeparator();
 
-		auto prevCell = mPivotToolbar1->addAction("Prev Cell", [&]() {
-			mPivotView->shiftCell(-1);
-			});
+		auto prevCell = mPivotToolbar1->addAction("Prev Cell", [&]() { mPivotView->shiftCell(-1); });
 		prevCell->setShortcut(QKeySequence(Qt::Key_Q));
-		auto nextCell = mPivotToolbar1->addAction("Next Cell", [&]() {
-			mPivotView->shiftCell(1);
-			});
+		auto nextCell = mPivotToolbar1->addAction("Next Cell", [&]() { mPivotView->shiftCell(1); });
 		nextCell->setShortcut(QKeySequence(Qt::Key_E));
 
 		mPivotToolbar1->addSeparator();
 
-		auto recenterCam = mPivotToolbar1->addAction("Recenter Camera", [&]() {
-			mPivotView->recenterCamera();
-			});
+		auto recenterCam = mPivotToolbar1->addAction("Recenter Camera", [&]() { mPivotView->recenterCamera(); });
 		recenterCam->setShortcut(QKeySequence(Qt::Key_G));
 
 		mPivotToolbar1->addSeparator();
 
-		auto act = mPivotToolbar2->addAction("Set Ghost", [&]() {
-			mPivotView->execGhostDialog();
-			});
+		auto act = mPivotToolbar2->addAction("Set Ghost", [&]() { mPivotView->execGhostDialog(); });
 
 		mPivotToolbar2->addSeparator();
 
-		auto prevGhost = mPivotToolbar2->addAction("Previous Ghost", [&]() {
-			mPivotView->setPreviousGhost();
-			});
+		auto prevGhost = mPivotToolbar2->addAction("Previous Ghost", [&]() { mPivotView->setPreviousGhost(); });
 		prevGhost->setShortcut(QKeySequence(Qt::Key_V));
-		auto captureGhost = mPivotToolbar2->addAction("Capture Ghost", [&]() {
-			mPivotView->captureGhost();
-			});
+		auto captureGhost = mPivotToolbar2->addAction("Capture Ghost", [&]() { mPivotView->captureGhost(); });
 		captureGhost->setShortcut(QKeySequence(Qt::Key_C));
-		auto paletteGhost = mPivotToolbar2->addAction("Palette Ghost", [&]() {
-			mPivotView->ghostPalette();
-			});
+		auto paletteGhost = mPivotToolbar2->addAction("Palette Ghost", [&]() { mPivotView->ghostPalette(); });
 		paletteGhost->setShortcut(QKeySequence(Qt::Key_Space));
 
 		mPivotToolbar2->addSeparator();
@@ -280,45 +229,37 @@ namespace el
 		QSpinBox* box = new QSpinBox(mClipsToolbar);
 		box->setMaximum(999);
 
-		mClipsToolbar->addAction("Create Clip", [&]() {
-			mClipsWidget->createClip();
-			});
-		auto removeClip = mClipsToolbar->addAction("Delete Clip", [&]() {
-			mClipsWidget->deleteClip();
-			}); removeClip->setShortcut(QKeySequence(Qt::Key_Delete));
+		mClipsToolbar->addAction("Create Clip", [&]() { mClipsWidget->createClip(); });
+		auto removeClip = mClipsToolbar->addAction("Delete Clip", [&]() { mClipsWidget->deleteClip(); }); 
+		
+		removeClip->setShortcut(QKeySequence(Qt::Key_Delete));
+		mClipsToolbar->addAction("Add Frame", [&]() { mClipsWidget->addFrame(); });
+		mClipsToolbar->addSeparator();
 
-			mClipsToolbar->addAction("Add Frame", [&]() {
-				mClipsWidget->addFrame();
-				});
+		auto recenterCam = mClipsToolbar->addAction("Recenter Camera", [&]() { mClipsWidget->recenterCamera(); });
+		recenterCam->setShortcut(QKeySequence(Qt::Key_G));
+		mClipsToolbar->addSeparator();
 
-			mClipsToolbar->addSeparator();
+		mClipsToolbar->addWidget(label);
+		mClipsToolbar->addWidget(box);
+		mClipsToolbar->addSeparator();
 
-			auto recenterCam = mClipsToolbar->addAction("Recenter Camera", [&]() {
-				mClipsWidget->recenterCamera();
-				});
-			recenterCam->setShortcut(QKeySequence(Qt::Key_G));
-			mClipsToolbar->addSeparator();
+		mClipsWidget = new ClipsWidget(this);
+		mClipsWidget->setMinimumWidth(750);
+		mClipsWidget->sig_Modified.connect([&]() { setModified(); });
+		mViewLayout->addWidget(mClipsWidget);
 
-			mClipsToolbar->addWidget(label);
-			mClipsToolbar->addWidget(box);
-			mClipsToolbar->addSeparator();
+		mClipsTimer = new QTimer(this);
+		connect(mClipsTimer, &QTimer::timeout, mClipsWidget, &ClipsWidget::animLoop);
+		mClipsTimer->start(1000.0f / 30.0f);
+		box->setValue(30.0f);
 
-			mClipsWidget = new ClipsWidget(this);
-			mClipsWidget->setMinimumWidth(750);
-			mClipsWidget->sig_Modified.connect([&]() { setModified(); });
-			mViewLayout->addWidget(mClipsWidget);
+		connect(box, &QSpinBox::valueChanged, [&](int value) {
+			mClipsTimer->stop();
+			mClipsTimer->start(1000.0f / value);
+		});
 
-			mClipsTimer = new QTimer(this);
-			connect(mClipsTimer, &QTimer::timeout, mClipsWidget, &ClipsWidget::animLoop);
-			mClipsTimer->start(1000.0f / 30.0f);
-			box->setValue(30.0f);
-
-			connect(box, &QSpinBox::valueChanged, [&](int value) {
-				mClipsTimer->stop();
-				mClipsTimer->start(1000.0f / value);
-			});
-
-			addToolBar(Qt::ToolBarArea::TopToolBarArea, mClipsToolbar);
+		addToolBar(Qt::ToolBarArea::TopToolBarArea, mClipsToolbar);
 	}
 
 	void AtlasSetup::updateEditorTitle(asset<Atlas> atlas) {
@@ -334,7 +275,7 @@ namespace el
 	}
 
 	void AtlasSetup::setModified() {
-		auto atlas = gAtlsUtil.currentAtlas;
+		auto atlas = gAtlasUtil.currentAtlas;
 		if (!atlas.has<AssetModified>()) {
 			atlas.add<AssetModified>();
 			updateEditorTitle(atlas);

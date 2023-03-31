@@ -80,7 +80,7 @@ namespace el
 			mHighlighter->init(mMainCam);
 		}
 		
-		mCellSprite = { gAtlsUtil.currentMaterial, mPainter, "" };
+		mCellSprite = { gAtlasUtil.currentMaterial, mPainter, "" };
 		mGhostSprite = { 0, mPainter, "" };
 	}
 
@@ -90,9 +90,9 @@ namespace el
 		case ElangAtlasGhostData::eType::NONE: none = true; break;
 		case ElangAtlasGhostData::eType::PREVIOUS:
 			{
-				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(gAtlsUtil.cellList->currentRow() - 1));
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->item(gAtlasUtil.cellList->currentRow() - 1));
 				if (item) {
-					mGhostSprite.material = gAtlsUtil.currentMaterial;
+					mGhostSprite.material = gAtlasUtil.currentMaterial;
 					mGhostSprite.setCell(item->text().toStdString());
 				} else none = true;
 			}
@@ -124,14 +124,14 @@ namespace el
 
 	void PivotView::moveCurrentCell() {
 		auto mpos = *mMainCam * gMouse.currentPosition();
-		CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 		if (item && item->holder && cursor() == Qt::ClosedHandCursor) {
 			auto& meta = item->holder.get<CellMeta>();
 			auto delta = (mpos - mGrabPos);//*mMainCam * (mpos - mGrabPos);
 			meta.oX = -int(delta.x + mGrabUV.x);
 			meta.oY = int(delta.y + mGrabUV.y);
-			assert(gAtlsUtil.currentAtlas);
-			auto& atlasmeta = gAtlsUtil.currentAtlas.get<AtlasMeta>();
+			assert(gAtlasUtil.currentAtlas);
+			auto& atlasmeta = gAtlasUtil.currentAtlas.get<AtlasMeta>();
 			item->holder->moldCellFromRect(item->holder, atlasmeta.width, atlasmeta.height);
 			update();
 		}
@@ -159,9 +159,9 @@ namespace el
 		auto uh = (height % 2 == 1) ? bh : bh + 1;
 		updateViewport(-lw, rw, -bh, uh);
 
-		assert(gAtlsUtil.currentAtlas);
-		if (gAtlsUtil.cellList->count() > 0) {
-			CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		assert(gAtlasUtil.currentAtlas);
+		if (gAtlasUtil.cellList->count() > 0) {
+			CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 			if (item) {
 				if (mGhostData.order == ElangAtlasGhostData::eOrder::BACK)
 					paintGhostCell();
@@ -221,7 +221,7 @@ namespace el
 			break;
 		case eState::Moving:
 			if (gMouse.state(0) == eInput::Once && cursor() == Qt::OpenHandCursor) {
-				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 				assert(item && item->holder);
 				setCursor(Qt::ClosedHandCursor);
 				mGrabPos = *mMainCam * gMouse.currentPosition();
@@ -232,7 +232,7 @@ namespace el
 			break;
 		case eState::MovingHitbox:
 			if (gMouse.state(0) == eInput::Once) {
-				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 				assert(item && item->holder);
 				if (cursor() == Qt::OpenHandCursor) {
 					setCursor(Qt::ClosedHandCursor);
@@ -255,7 +255,7 @@ namespace el
 		}
 
 		auto mpos = *mMainCam * gMouse.currentPosition();
-		CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 		switch (mCreateState) {
 		case eState::Creating:
 			mCreateRect.r = mpos.x;
@@ -342,7 +342,7 @@ namespace el
 	}
 
 	void PivotView::onViewMouseRelease() {
-		CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 		switch (mCreateState) {
 		case eState::Creating:
 			if (item && item->holder) {
@@ -383,14 +383,14 @@ namespace el
 	}
 
 	void PivotView::connectList() {
-		connect(gAtlsUtil.cellList, &QListExtension::currentRowChanged, [&]() {
+		connect(gAtlasUtil.cellList, &QListExtension::currentRowChanged, [&]() {
 			//setFocus();
 			update();
 		});
 	}
 
 	void PivotView::showEditor() {
-		auto& list = *gAtlsUtil.cellList;
+		auto& list = *gAtlasUtil.cellList;
 		list.setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
 		list.setDragDropMode(QAbstractItemView::DragDropMode::NoDragDrop);
 		list.setDefaultDropAction(Qt::DropAction::IgnoreAction);
@@ -406,18 +406,18 @@ namespace el
 
 	void PivotView::hideEditor() {
 		gProject.clear<AtlasCurrentCell>();
-		auto item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		auto item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 		if (item)
 			item->holder.add<AtlasCurrentCell>();
-		gAtlsUtil.cellList->hide();
+		gAtlasUtil.cellList->hide();
 		hide();
 	}
 
 	void PivotView::incrementPivot(int x, int y) {
 		if (cursor() != Qt::ClosedHandCursor) {
-			CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+			CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 			if (item && item->holder) {
-				auto atlas = gAtlsUtil.currentAtlas;
+				auto atlas = gAtlasUtil.currentAtlas;
 				auto& ameta = atlas.get<AtlasMeta>();
 				auto& meta = item->holder.get<CellMeta>();
 				meta.oX -= x;
@@ -430,7 +430,7 @@ namespace el
 
 	void PivotView::shiftCell(int dir) {
 		if (cursor() != Qt::ClosedHandCursor) {
-			auto& list = *gAtlsUtil.cellList;
+			auto& list = *gAtlasUtil.cellList;
 			int row = list.currentRow() + dir;
 			row = clamp(row, 0, list.count() - 1);
 			list.setCurrentRow(row);
@@ -439,23 +439,26 @@ namespace el
 
 	void PivotView::setPreviousGhost() {
 		mGhostData.type = ElangAtlasGhostData::eType::PREVIOUS;
-		mGhostData.material = gAtlsUtil.currentMaterial;
+		mGhostData.material = gAtlasUtil.currentMaterial;
+		mGhostData.atlas = gAtlasUtil.currentAtlas;
 		update();
 	}
 
 	void PivotView::captureGhost() {
-		CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 		if (item) {
 			assert(item->holder);
 			mGhostData.type = ElangAtlasGhostData::eType::INDEXED;
-			mGhostData.material = gAtlsUtil.currentMaterial;
+			mGhostData.material = gAtlasUtil.currentMaterial;
+			mGhostData.atlas = gAtlasUtil.currentAtlas;
 			mGhostData.cell = item->holder;
 		} update();
 	}
 
 	void PivotView::ghostPalette() {
 		if (mGhostData.type != ElangAtlasGhostData::eType::EXTERNAL) { // NONE || PREVIOUS
-			mGhostData.material = gAtlsUtil.currentMaterial;
+			mGhostData.material = gAtlasUtil.currentMaterial;
+			mGhostData.atlas = gAtlasUtil.currentAtlas;
 			mGhostData.type = ElangAtlasGhostData::eType::INDEXED;
 		} 
 
@@ -463,14 +466,14 @@ namespace el
 		AtlasPalette palette(&dialog, true);
 
 		palette.updateAtlas(mGhostData.material->textures[0]->atlas);
-		palette.updateMaterial(mGhostData.material, gAtlsUtil.globalPalettePositon, gAtlsUtil.globalPaletteScale);
+		palette.updateMaterial(mGhostData.material, gAtlasUtil.globalPalettePositon, gAtlasUtil.globalPaletteScale);
 		palette.sig_Clicked.connect([&](asset<Cell> cell) {
 			mGhostData.cell = cell;
 			dialog.close();
 		});
 		dialog.exec();
-		gAtlsUtil.globalPalettePositon = palette.camPosition();
-		gAtlsUtil.globalPaletteScale = palette.camScale();
+		gAtlasUtil.globalPalettePositon = palette.camPosition();
+		gAtlasUtil.globalPaletteScale = palette.camScale();
 		update();
 	}
 

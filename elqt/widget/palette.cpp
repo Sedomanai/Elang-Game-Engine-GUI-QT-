@@ -103,9 +103,11 @@ namespace el {
 				mCellShapes->line.batchAABB(holder->rect, gEditorColor.cell);
 			}
 			for (asset<CellHolder> holder : gProject.view<PaletteSelectedCell>()) {
-				auto color = gEditorColor.cell;
-				color.a = 80;
-				mCellShapes->fill.batchAABB(holder->rect, color);
+				if (holder.get<SubAssetData>().parent == mAtlas) {
+					auto color = gEditorColor.cell;
+					color.a = 80;
+					mCellShapes->fill.batchAABB(holder->rect, color);
+				}
 			}
 			mCellShapes->line.flags |= ePainterFlags::LOCKED;
 			mCellShapes->fill.flags |= ePainterFlags::LOCKED;

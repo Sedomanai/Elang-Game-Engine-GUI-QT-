@@ -97,7 +97,7 @@ namespace el
 	}
 
 	void CellsWidget::renameAll() {
-		auto& cells = *gAtlsUtil.cellList;
+		auto& cells = *gAtlasUtil.cellList;
 		mAtlas->cells.clear();
 
 		auto& meta = mAtlas.get<AtlasMeta>();
@@ -156,7 +156,7 @@ namespace el
 			auto& meta = mAtlas.get<AtlasMeta>();
 			meta.cellorder.clear();
 
-			auto& list = gAtlsUtil.cellList;
+			auto& list = gAtlasUtil.cellList;
 			for (auto i = 0; i < list->count(); i++) {
 				auto item = reinterpret_cast<CellItem*>(list->item(i));
 				meta.cellorder.emplace_back(item->holder);
@@ -197,8 +197,8 @@ namespace el
 
 	void CellsWidget::safeClearSelection() {
 		mSuppressSelect = true;
-		gAtlsUtil.cellList->clearSelection();
-		gAtlsUtil.cellList->setCurrentItem(0);
+		gAtlasUtil.cellList->clearSelection();
+		gAtlasUtil.cellList->setCurrentItem(0);
 		gProject.clear<AtlasSelectedCell>();
 		mSuppressSelect = false;
 	}
@@ -274,7 +274,7 @@ namespace el
 							sig_Modified.invoke();
 						} else {
 							mSuppressSelect = true;
-							gAtlsUtil.cellList->clearSelection();
+							gAtlasUtil.cellList->clearSelection();
 							mSelectRect.normalize();
 
 							gProject.clear<AtlasSelectedCell>();
@@ -288,7 +288,7 @@ namespace el
 							}
 
 							if (selected.size() > 0) {
-								gAtlsUtil.cellList->setCurrentItem(asset<CellHolder>(selected[0]).get<CellItem*>());
+								gAtlasUtil.cellList->setCurrentItem(asset<CellHolder>(selected[0]).get<CellItem*>());
 							}
 							mSuppressSelect = false;
 						}
@@ -378,7 +378,7 @@ namespace el
 		assert(mAtlas);
 		mSelectRect.roundCorners();
 		mSelectRect.normalize();
-		CellItem* item = new CellItem(gAtlsUtil.cellList);
+		CellItem* item = new CellItem(gAtlasUtil.cellList);
 		item->setFlags(item->flags() | Qt::ItemIsEditable);
 
 		auto& meta = mAtlas.get<AtlasMeta>();
@@ -393,12 +393,12 @@ namespace el
 		item->setText(QString::fromUtf8(name));
 
 		mSuppressSelect = true;
-		gAtlsUtil.cellList->addItem(item);
-		gAtlsUtil.cellList->clearSelection();
+		gAtlasUtil.cellList->addItem(item);
+		gAtlasUtil.cellList->clearSelection();
 
 		gProject.clear<AtlasSelectedCell>();
 		item->setSelected(true);
-		gAtlsUtil.cellList->setCurrentItem(item);
+		gAtlasUtil.cellList->setCurrentItem(item);
 		mSuppressSelect = false;
 
 		holder.update();
@@ -407,7 +407,7 @@ namespace el
 
 	void CellsWidget::createNamedCell() {
 		createCell(
-			gAtlsUtil.cellList->getNoneConflictingName(
+			gAtlasUtil.cellList->getNoneConflictingName(
 				QString::fromStdString(mAtlas.get<AssetData>().filePath.stem().generic_u8string()), false
 			).toStdString()
 		);
@@ -519,18 +519,18 @@ namespace el
 	}
 
 	void CellsWidget::connectList() {
-		connect(gAtlsUtil.cellList, &QListExtension::itemSelectionChanged, [&]() {
+		connect(gAtlasUtil.cellList, &QListExtension::itemSelectionChanged, [&]() {
 			if (isVisible() && !mSuppressSelect && mAtlas) {
 				gProject.clear<AtlasSelectedCell>();
-				for (auto i = 0; i < gAtlsUtil.cellList->count(); i++) {
-					CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(i));
+				for (auto i = 0; i < gAtlasUtil.cellList->count(); i++) {
+					CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->item(i));
 					if (item->isSelected())
 						gProject.get_or_emplace<AtlasSelectedCell>(item->holder);
 				} ui.view->update();
 			}
 			});
 
-		connect(gAtlsUtil.cellList->model(), &QAbstractItemModel::rowsMoved, [&]() {
+		connect(gAtlasUtil.cellList->model(), &QAbstractItemModel::rowsMoved, [&]() {
 			if (isVisible() && !mSuppressSelect && mAtlas) {
 				reorderCellsAccordingToList();
 				sig_Modified.invoke();
@@ -538,12 +538,12 @@ namespace el
 			});
 
 		// This is common with pivot_widget
-		connect(gAtlsUtil.cellList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
-			auto atlas = gAtlsUtil.currentAtlas;
+		connect(gAtlasUtil.cellList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
+			auto atlas = gAtlasUtil.currentAtlas;
 			if (atlas && atlas.has<AssetLoaded>()) {
-				CellItem* item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+				CellItem* item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 				auto& data = item->holder.get<SubAssetData>();
-				auto name = gAtlsUtil.cellList->
+				auto name = gAtlasUtil.cellList->
 					getNoneConflictingName(reinterpret_cast<QLineEdit*>(pLineEdit)->text()).toStdString();
 
 				assert(mAtlas->cells.contains(data.name));
@@ -572,7 +572,7 @@ namespace el
 			int t = std::numeric_limits<int>::min();
 
 			mSuppressSelect = true;
-			gAtlsUtil.cellList->clearSelection();
+			gAtlasUtil.cellList->clearSelection();
 			sizet i = 0;
 			for (asset<CellHolder> holder : selected) {
 				l = min(l, holder->rect.l);
@@ -589,7 +589,7 @@ namespace el
 			first->rect = Box(l, b, r, t);
 			first->moldCellFromRect(first, (int)meta.width, (int)meta.height);
 			gProject.clear<AtlasSelectedCell>();
-			gAtlsUtil.cellList->setCurrentItem(first.get<CellItem*>());
+			gAtlasUtil.cellList->setCurrentItem(first.get<CellItem*>());
 			reorderCellsAccordingToList();
 			rebatchAllCellHolders();
 			sig_Modified.invoke();
@@ -598,7 +598,7 @@ namespace el
 	}
 
 	void CellsWidget::recreateList() {
-		auto& list = *gAtlsUtil.cellList;
+		auto& list = *gAtlasUtil.cellList;
 		for (auto i = 0; i < list.count(); i++) {
 			delete list.item(i);
 		} list.clear();
@@ -621,7 +621,7 @@ namespace el
 	}
 
 	void CellsWidget::showEditor() {
-		auto list = gAtlsUtil.cellList;
+		auto list = gAtlasUtil.cellList;
 		list->setSelectionMode(QAbstractItemView::SelectionMode::ExtendedSelection);
 		list->setDragDropMode(QAbstractItemView::DragDropMode::DragDrop);
 		list->setDefaultDropAction(Qt::DropAction::MoveAction);
@@ -652,10 +652,10 @@ namespace el
 	}
 
 	void CellsWidget::hideEditor() {
-		gAtlsUtil.cellList->hide();
+		gAtlasUtil.cellList->hide();
 
 		gProject.clear<AtlasCurrentCell>();
-		auto item = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->currentItem());
+		auto item = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->currentItem());
 		if (item)
 			item->holder.add<AtlasCurrentCell>();
 		safeClearSelection();

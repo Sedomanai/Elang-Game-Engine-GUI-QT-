@@ -1,6 +1,4 @@
 #pragma once
-// QT includes in precompiler
-
 #include <uic/ui_q_elang_atlas_editor.h>
 #include <atlas/util.h>
 

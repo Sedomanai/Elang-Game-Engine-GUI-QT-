@@ -32,6 +32,7 @@ namespace el
 		eOrder order;
 		asset<Cell> cell;
 		asset<Material> material;
+		asset<Atlas> atlas;
 
 	private:
 		void createInternalAssets();
@@ -47,6 +48,7 @@ namespace el
 		ElangAtlasGhostDialog(ElangAtlasGhostData& data, QWidget* parent = Q_NULLPTR);
 	private:
 		void syncUIWithData();
+		void syncCellOnly();
 		bool suppressSelect;
 		ElangAtlasGhostData& mData;
 		bool mConfirmed;

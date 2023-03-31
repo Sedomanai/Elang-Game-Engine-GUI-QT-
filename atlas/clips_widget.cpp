@@ -83,9 +83,6 @@ namespace el
 
 				mViewShapes->line.batchline(line(-1000000.0f, 0.0f, 1000000.0f, 0.0f), color8(255, 255, 255, 80));
 				mViewShapes->line.batchline(line(0.0f, -1000000.0f, 0.0f, 1000000.0f), color8(255, 255, 255, 80));
-				//aabb rect;
-				//mClipSprite.sync(rect);
-				//mViewShapes->line.batchAABB(rect, color8(255, 255, 255, 30));
 
 				mViewShapes->draw();
 				mViewPainter->paint();
@@ -128,7 +125,7 @@ namespace el
 			ui.speedBox->setEnabled(false);
 			ui.repeatBox->setEnabled(false);
 			connect(ui.speedBox, &QDoubleSpinBox::valueChanged, [&](double value) {
-				auto item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+				auto item = reinterpret_cast<ClipItem*>(gAtlasUtil.clipList->currentItem());
 				if (item && item->clip && mClip.clip()) {
 					item->clip->speed = (float)value;
 					if (!mSuppressSpinbox)
@@ -136,7 +133,7 @@ namespace el
 				}
 				});
 			connect(ui.repeatBox, &QCheckBox::toggled, [&](bool value) {
-				auto item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+				auto item = reinterpret_cast<ClipItem*>(gAtlasUtil.clipList->currentItem());
 				if (item && item->clip && mClip.clip()) {
 					item->clip->repeat = (float)value;
 					if (!mSuppressSpinbox)
@@ -310,11 +307,11 @@ namespace el
 					if (mHeld->canvas.bounds.contains(screenToReel())) {
 						QDialog dialog(this);
 						AtlasPalette palette(&dialog, true);
-						palette.updateAtlas(gAtlsUtil.currentAtlas);
-						palette.updateMaterial(gAtlsUtil.currentMaterial, gAtlsUtil.globalPalettePositon, gAtlsUtil.globalPaletteScale);
+						palette.updateAtlas(gAtlasUtil.currentAtlas);
+						palette.updateMaterial(gAtlasUtil.currentMaterial, gAtlasUtil.globalPalettePositon, gAtlasUtil.globalPaletteScale);
 
 						palette.sig_Clicked.connect([&](asset<Cell> cell) {
-							ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+							ClipItem* item = reinterpret_cast<ClipItem*>(gAtlasUtil.clipList->currentItem());
 							auto clip = item->clip;
 							auto& frames = clip->cells;
 							assert(item && clip);
@@ -335,8 +332,8 @@ namespace el
 						mPaused = true;
 						dialog.exec();
 						mPaused = false;
-						gAtlsUtil.globalPalettePositon = palette.camPosition();
-						gAtlsUtil.globalPaletteScale = palette.camScale();
+						gAtlasUtil.globalPalettePositon = palette.camPosition();
+						gAtlasUtil.globalPaletteScale = palette.camScale();
 					}
 				}
 
@@ -372,9 +369,9 @@ namespace el
 	}
 
 	void ClipsWidget::reorderClipsAccordingToList() {
-		auto atlas = gAtlsUtil.currentAtlas;
-		assert(gAtlsUtil.currentAtlas && gAtlsUtil.currentAtlas.has<AssetLoaded>());
-		auto& list = gAtlsUtil.clipList;
+		auto atlas = gAtlasUtil.currentAtlas;
+		assert(gAtlasUtil.currentAtlas && gAtlasUtil.currentAtlas.has<AssetLoaded>());
+		auto& list = gAtlasUtil.clipList;
 		auto& meta = atlas.get<AtlasMeta>();
 
 		meta.cliporder.clear();
@@ -447,25 +444,25 @@ namespace el
 	}
 
 	void ClipsWidget::createClip() {
-		assert(gAtlsUtil.currentAtlas);
+		assert(gAtlasUtil.currentAtlas);
 
-		if (gAtlsUtil.currentAtlas.has<AssetLoaded>()) {
+		if (gAtlasUtil.currentAtlas.has<AssetLoaded>()) {
 			mSuppressSelect = true;
-			auto& list = *gAtlsUtil.clipList;
+			auto& list = *gAtlasUtil.clipList;
 			ClipItem* item = new ClipItem(&list);
 			item->setFlags(item->flags() | Qt::ItemIsEditable);
 
-			auto clipname = gAtlsUtil.currentAtlas.get<GUIAsset>().filePath.stem().generic_u8string();
+			auto clipname = gAtlasUtil.currentAtlas.get<GUIAsset>().filePath.stem().generic_u8string();
 			auto newname = list.getNoneConflictingName(QString::fromUtf8(clipname), false);
 			item->setText(newname);
 			clipname = newname.toUtf8();
 
 			// CREATE CLIP
-			auto& meta = gAtlsUtil.currentAtlas.get<AtlasMeta>();
+			auto& meta = gAtlasUtil.currentAtlas.get<AtlasMeta>();
 			auto clip = item->clip = gProject.make<ClipMeta>().add<Clip>();
 			clip.add<SubAssetData>(meta.cliporder.size(), clipname, item->clip);
 			meta.cliporder.emplace_back(clip);
-			gAtlsUtil.currentAtlas->clips.emplace(clipname, clip);
+			gAtlasUtil.currentAtlas->clips.emplace(clipname, clip);
 
 			list.addItem(item);
 			mSuppressSelect = false;
@@ -476,12 +473,12 @@ namespace el
 	}
 
 	void ClipsWidget::deleteClip() {
-		assert(gAtlsUtil.currentAtlas);
-		auto atlas = gAtlsUtil.currentAtlas;
+		assert(gAtlasUtil.currentAtlas);
+		auto atlas = gAtlasUtil.currentAtlas;
 
-		ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+		ClipItem* item = reinterpret_cast<ClipItem*>(gAtlasUtil.clipList->currentItem());
 		if (item && item->clip && mClip.clip()) {
-			auto& list = gAtlsUtil.clipList;
+			auto& list = gAtlasUtil.clipList;
 			auto row = list->currentRow();
 			auto clip = item->clip;
 			auto& data = clip.get<SubAssetData>();
@@ -505,20 +502,20 @@ namespace el
 	}
 
 	void ClipsWidget::addFrame() {
-		if (gAtlsUtil.cellList->count() > 0 && mClip.clip()) {
-			ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+		if (gAtlasUtil.cellList->count() > 0 && mClip.clip()) {
+			ClipItem* item = reinterpret_cast<ClipItem*>(gAtlasUtil.clipList->currentItem());
 			if (item && item->clip) {
 				asset<Cell> cell;
 				auto& frames = item->clip->cells;
 				auto size = frames.size();
 				if (size > 0) {
 					cell = frames.at(size - 1);
-				} else if (gAtlsUtil.cellList->count() > 0) {
-					cell = reinterpret_cast<CellItem*>(gAtlsUtil.cellList->item(0))->holder;
+				} else if (gAtlasUtil.cellList->count() > 0) {
+					cell = reinterpret_cast<CellItem*>(gAtlasUtil.cellList->item(0))->holder;
 				}
 				frames.emplace_back(cell);
 
-				auto holder = gProject.make<ClipframeHolder>(gAtlsUtil.currentMaterial, mReelPainter, this);
+				auto holder = gProject.make<ClipframeHolder>(gAtlasUtil.currentMaterial, mReelPainter, this);
 				holder->reorder(size);
 				holder->reshape(item->clip);
 
@@ -534,16 +531,16 @@ namespace el
 	}
 
 	void ClipsWidget::recreateList() {
-		if (gAtlsUtil.currentAtlas.has<AssetLoaded>()) {
+		if (gAtlasUtil.currentAtlas.has<AssetLoaded>()) {
 			mSuppressSelect = true;
-			auto& list = *gAtlsUtil.clipList;
+			auto& list = *gAtlasUtil.clipList;
 			auto row = list.currentRow();
 
 			for (auto i = 0; i < list.count(); i++) {
 				delete list.item(i);
 			} list.clear();
 
-			auto& clips = gAtlsUtil.currentAtlas.get<AtlasMeta>().cliporder;
+			auto& clips = gAtlasUtil.currentAtlas.get<AtlasMeta>().cliporder;
 			for (sizet i = 0; i < clips.size(); i++) {
 				auto data = asset<SubAssetData>(clips[i]);
 				ClipItem* item = new ClipItem(&list);
@@ -583,7 +580,7 @@ namespace el
 		if (clip) {
 			auto size = clip->cells.size();
 			for (sizet i = 0; i < size; i++) {
-				asset<ClipframeHolder> holder = gProject.make<ClipframeHolder>(gAtlsUtil.currentMaterial, mReelPainter, this);
+				asset<ClipframeHolder> holder = gProject.make<ClipframeHolder>(gAtlasUtil.currentMaterial, mReelPainter, this);
 				holder->reorder(i);
 				holder->reshape(clip);
 			}
@@ -650,7 +647,7 @@ namespace el
 			setupCameraTween(mViewCamTween);
 		}
 
-		mClipSprite.material = gAtlsUtil.currentMaterial;
+		mClipSprite.material = gAtlasUtil.currentMaterial;
 		mClipSprite.painter = mViewPainter;
 	}
 
@@ -674,9 +671,9 @@ namespace el
 	}
 
 	void ClipsWidget::connectList() {
-		connect(gAtlsUtil.clipList, &QListExtension::currentRowChanged, [&]() {
+		connect(gAtlasUtil.clipList, &QListExtension::currentRowChanged, [&]() {
 			if (isVisible() && !mSuppressSelect) {
-				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlasUtil.clipList->currentItem());
 				if (item && item->clip) {
 					mClip.setClip(item->clip);
 
@@ -707,20 +704,20 @@ namespace el
 			}
 			});
 
-		connect(gAtlsUtil.clipList->model(), &QAbstractItemModel::rowsMoved, [&]() {
+		connect(gAtlasUtil.clipList->model(), &QAbstractItemModel::rowsMoved, [&]() {
 			if (isVisible() && !mSuppressSelect) {
 				reorderClipsAccordingToList();
 				sig_Modified.invoke();
 			}
 			});
 
-		connect(gAtlsUtil.clipList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
-			auto atlas = gAtlsUtil.currentAtlas;
+		connect(gAtlasUtil.clipList->itemDelegate(), &QAbstractItemDelegate::commitData, [&](QWidget* pLineEdit) {
+			auto atlas = gAtlasUtil.currentAtlas;
 			if (isVisible() && atlas.has<AssetLoaded>()) {
-				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlsUtil.clipList->currentItem());
+				ClipItem* item = reinterpret_cast<ClipItem*>(gAtlasUtil.clipList->currentItem());
 
 				auto& data = item->clip.get<SubAssetData>();
-				auto name = gAtlsUtil.clipList->
+				auto name = gAtlasUtil.clipList->
 					getNoneConflictingName(reinterpret_cast<QLineEdit*>(pLineEdit)->text()).toStdString();
 
 				assert(atlas->clips.contains(data.name));
@@ -737,14 +734,14 @@ namespace el
 	}
 
 	void ClipsWidget::showEditor() {
-		gAtlsUtil.clipList->show();
+		gAtlasUtil.clipList->show();
 		recreateList();
 		ui.reel->update();
 		show();
 	}
 
 	void ClipsWidget::hideEditor() {
-		gAtlsUtil.clipList->hide();
+		gAtlasUtil.clipList->hide();
 		ui.reel->update();
 		hide();
 	}

@@ -13,12 +13,8 @@ namespace el
 {
 
 	void ElangAtlasGhostData::createInternalAssets() {
-		if (!mExternal) {
-			mExternal = gProject.make<Material>().add<EditorAsset>();
-			auto tex = gProject.make<AssetData>(-1, "", fio::file_time_type()).add<TextureMeta>().add<EditorAsset>().add<Texture>();
-			mExternalAtlas = tex->atlas = gProject.make<AssetData>(-1, "", fio::file_time_type()).add<AtlasMeta>().add<EditorAsset>().add<Atlas>();
-			mExternal->setTexture(tex);
-		}
+		if (!mExternal)
+			gAtlasUtil.makeEmptyMaterial("__editor_ghost_material_", mExternal, mExternalAtlas);
 	}
 
 	ElangAtlasGhostDialog::ElangAtlasGhostDialog(ElangAtlasGhostData & data, QWidget * parent)
@@ -47,19 +43,22 @@ namespace el
 
 		connect(ui.prevRadio, &QRadioButton::toggled, [&]() {
 			mData.type = ElangAtlasGhostData::eType::PREVIOUS;
-			mData.material = gAtlsUtil.currentMaterial;
+			mData.material = gAtlasUtil.currentMaterial;
+			mData.atlas = gAtlasUtil.currentAtlas;
 			syncUIWithData();
 			});
 
 		connect(ui.indexRadio, &QRadioButton::toggled, [&]() {
 			mData.type = ElangAtlasGhostData::eType::INDEXED;
-			mData.material = gAtlsUtil.currentMaterial;
+			mData.material = gAtlasUtil.currentMaterial;
+			mData.atlas = gAtlasUtil.currentAtlas;
 			syncUIWithData();
 			});
 
 		connect(ui.externRadio, &QRadioButton::toggled, [&]() {
 			mData.type = ElangAtlasGhostData::eType::EXTERNAL;
 			mData.material = mData.mExternal;
+			mData.atlas = mData.mExternalAtlas;
 			syncUIWithData();
 			});
 
@@ -72,29 +71,58 @@ namespace el
 			});
 
 		connect(ui.texButton, &QPushButton::clicked, [&]() {
-			// open texture here
-			});
+			fio::path path =
+				QFileDialog::getOpenFileName(this, "External Ghost Texture", gAtlasUtil.lastSearchHistory.generic_string().c_str(), "Texture (*.png)").toStdString();
+			if (gAtlasUtil.openTexture(mData.mExternal, path, "The same ghost texture is already loaded"))
+				syncUIWithData();
+		});
 
 		connect(ui.atlasButton, &QPushButton::clicked, [&]() {
-			// open atlas here
-			});
+			// was too specific to... specify in gAtlsUtil
+			auto mat = mData.material;
+			assert(mat && mat->textures[0]);
+			auto atlas = mData.atlas;
+			assert(atlas);
+			auto& data = atlas.get<AssetData>();
+
+			fio::path path =
+				QFileDialog::getOpenFileName(this, "Open Atlas", gAtlasUtil.lastSearchHistory.generic_string().c_str(), "Atlas (*.atls)").toStdString();
+			if (!path.empty() && data.inode != el_file::identifier(path)) {
+				gAtlasUtil.recordLastDirectoryHistory(path);
+				auto& meta = atlas.get<AtlasMeta>();
+				if (atlas.has<AssetLoaded>())
+					atlas->unload(meta);
+				else
+					atlas.add<AssetLoaded>();
+
+				atlas->importFile(path, meta);
+				atlas.get<GUIAsset>().filePath = path.filename();
+				data = { el_file::identifier(path), path, fio::last_write_time(path) };
+
+				if (atlas.has<AssetModified>())
+					atlas.remove<AssetModified>();
+				syncUIWithData();
+			} else {
+				cout << "Atlas file is already loaded" << endl;
+			}
+		});
 
 		connect(ui.cellButton, &QPushButton::clicked, [&]() {
 			QDialog dialog;
 			AtlasPalette palette(&dialog, true);
 
 			assert(mData.material && mData.material->hasTexture());
-			palette.updateAtlas(mData.material->textures[0]->atlas);
-			palette.updateMaterial(mData.material, gAtlsUtil.globalPalettePositon, gAtlsUtil.globalPaletteScale);
+			palette.updateAtlas(mData.atlas);
+			palette.updateMaterial(mData.material, gAtlasUtil.globalPalettePositon, gAtlasUtil.globalPaletteScale);
 
 			palette.sig_Clicked.connect([&](asset<Cell> result) {
 				mData.cell = result;
-				ui.cellLabel->setText(QString::fromUtf8(result.get<SubAssetData>().name));
 				dialog.close();
-				});
+				syncUIWithData();
+			});
 
-			gAtlsUtil.globalPalettePositon = palette.camPosition();
-			gAtlsUtil.globalPaletteScale = palette.camScale();
+			gAtlasUtil.globalPalettePositon = palette.camPosition();
+			gAtlasUtil.globalPaletteScale = palette.camScale();
 			dialog.exec();
 		});
 	}
@@ -109,13 +137,13 @@ namespace el
 
 		if (ui.indexBox->isEnabled()) {
 			if (mData.type == ElangAtlasGhostData::eType::INDEXED) {
-				auto tex = gAtlsUtil.currentMaterial->textures[0];
+				auto tex = gAtlasUtil.currentMaterial->textures[0];
 				ui.texLabel->setEnabled(false);
 				ui.texButton->setEnabled(false);
 				ui.atlasLabel->setEnabled(false);
 				ui.atlasButton->setEnabled(false);
 				ui.texLabel->setText(QString::fromUtf8(tex.get<AssetData>().filePath.filename().generic_u8string()));
-				ui.atlasLabel->setText(QString::fromUtf8(gAtlsUtil.currentAtlas.get<AssetData>().filePath.filename().generic_u8string()));
+				ui.atlasLabel->setText(QString::fromUtf8(gAtlasUtil.currentAtlas.get<AssetData>().filePath.filename().generic_u8string()));
 			} else {
 				auto & texdata = mData.mExternal->textures[0].get<AssetData>();
 				ui.texLabel->setText(QString::fromUtf8(texdata.filePath.filename().generic_u8string()));
@@ -130,13 +158,23 @@ namespace el
 					ui.atlasLabel->setEnabled(false);
 					ui.atlasButton->setEnabled(false);
 				}
-			}
-			if (mData.cell)
-				ui.cellLabel->setText(QString::fromUtf8(mData.cell.get<SubAssetData>().name));
+			} 
 		} else {
 			ui.texLabel->setText("");
 			ui.atlasLabel->setText("");
-			ui.cellLabel->setText("");
+		} syncCellOnly();
+	}
+
+	void ElangAtlasGhostDialog::syncCellOnly() {
+		if (mData.cell) {
+			auto& sub = mData.cell.get<SubAssetData>();
+			auto atlas = mData.atlas;
+			if (atlas == sub.parent)
+				ui.cellLabel->setText(QString::fromUtf8(sub.name));
+			else {
+				mData.cell = asset<Cell>();
+				ui.cellLabel->setText("");
+			}
 		}
 	}
 }
